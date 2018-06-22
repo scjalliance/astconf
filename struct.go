@@ -100,14 +100,19 @@ func newStructEncoder(t reflect.Type, canAddr bool) encoderFunc {
 			continue
 		}
 		t := typeByIndex(t, f.index)
+		var elemEnc encoderFunc
 		switch {
 		case f.Block(), f.BlockAddr():
-			encoders = append(encoders, newFieldEncoder(f.index, newBlockEncoder(typeEncoder(t))))
+			elemEnc = newBlockEncoder(typeEncoder(t))
 		case f.Object(), f.ObjectAddr():
-			encoders = append(encoders, newFieldEncoder(f.index, newObjectEncoder(f.name, typeEncoder(t))))
+			elemEnc = newObjectEncoder(f.name, typeEncoder(t))
 		default:
-			encoders = append(encoders, newFieldEncoder(f.index, newSettingEncoder(f.name, typeEncoder(t))))
+			elemEnc = newSettingEncoder(f.name, typeEncoder(t))
 		}
+		if f.OmitEmtpy() {
+			elemEnc = newOmitEmptyEncoder(t, elemEnc)
+		}
+		encoders = append(encoders, newFieldEncoder(f.index, elemEnc))
 	}
 
 	return encoders.finalize()

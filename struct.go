@@ -102,6 +102,14 @@ func newStructEncoder(t reflect.Type, canAddr bool) encoderFunc {
 		t := typeByIndex(t, f.index)
 		var elemEnc encoderFunc
 		switch {
+		case f.MultiValue(), f.MultiValueAddr():
+			switch {
+			case f.Object(), f.ObjectAddr():
+				elemEnc = newObjectEncoder(f.name, typeEncoder(t.Elem()))
+			default:
+				elemEnc = newSettingEncoder(f.name, typeEncoder(t.Elem()))
+			}
+			elemEnc = newSliceEncoder(elemEnc)
 		case f.Block(), f.BlockAddr():
 			elemEnc = newBlockEncoder(typeEncoder(t))
 		case f.Object(), f.ObjectAddr():

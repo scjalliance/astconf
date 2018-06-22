@@ -8,9 +8,8 @@ type sliceEncoder struct {
 	elemEnc encoderFunc
 }
 
-func newSliceEncoder(t reflect.Type) encoderFunc {
-	// TODO: Handle byte slices in some special way?
-	enc := sliceEncoder{typeEncoder(t.Elem())}
+func newSliceEncoder(elemEnc encoderFunc) encoderFunc {
+	enc := sliceEncoder{elemEnc: elemEnc}
 	return enc.encode
 }
 

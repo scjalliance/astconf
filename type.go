@@ -48,7 +48,8 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
 		}
 		return newStructEncoder(t, false)
 	case reflect.Slice:
-		return newSliceEncoder(t)
+		// TODO: Handle byte slices in some special way?
+		return newSliceEncoder(typeEncoder(t.Elem()))
 	case reflect.Ptr:
 		return newIndirectEncoder(newTypeEncoder(t.Elem(), allowAddr))
 	default:

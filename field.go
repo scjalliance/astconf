@@ -5,12 +5,6 @@ import (
 	"sort"
 )
 
-// Field is an asterisk configuration field. It provides contextual information
-// for custom marshalers.
-//type Field struct {
-//	Name string
-//}
-
 type fieldSet []field
 
 func (fs fieldSet) Len() int {
@@ -22,19 +16,44 @@ func (fs fieldSet) Swap(i, j int) {
 }
 
 func (fs fieldSet) Less(i, j int) bool {
+	// Any field that could possibly start its own section should always go
+	// at the end. This helps to avoid accidental mixing of fields that
+	// belong to different sections.
+	//
+	// Right now we do this in a hacky way by assuming that every "block" is
+	// a potential section starter. The term "block" here is nebulous, but
+	// right now blocks are things that could print multiple lines, including
+	// structs, slices, and types with custom marshalers.
+	//
+	// Probably the more correct thing to do is to accurately determine
+	// whether a type really could be a section starter by examining it and
+	// all its descedent elements. A type with any of these qualities should
+	// be considered:
+	//  1. The type itself is a Sectioner
+	//  2. The type is a struct that contains an embedded sectioner
+	//  3. The type itself has a MarshalAsterisk() function
+	//  4. The type is a struct that ontains an embedded MarshalAsterisk() function
+	//  5. The type is a struct with any non-embedded member that meets any of 1-4
+	//
+	// Such an analysis should probably be perform by typeFeatures().
+
 	a := &fs[i]
 	b := &fs[j]
 
+	// Note: We skip multi-value slices because their elements aren't blocks
+	aIsBlock := a.Block() && !a.MultiValue()
+	bIsBlock := b.Block() && !b.MultiValue()
+
 	// Non-blocks before blocks
-	if !a.Block() && b.Block() {
+	if !aIsBlock && bIsBlock {
 		return true
 	}
-	if a.Block() && !b.Block() {
+	if aIsBlock && !bIsBlock {
 		return false
 	}
 
 	// If both are blocks, non-sectioners before sectioners
-	if a.Block() && b.Block() {
+	if aIsBlock && bIsBlock {
 		if !a.Sectioner() && b.Sectioner() {
 			return true
 		}

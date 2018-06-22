@@ -32,6 +32,8 @@ const (
 	tfSectionerAddr
 	tfIndenter
 	tfIndenterAddr
+	tfMultiValue
+	tfMultiValueAddr
 	tfBlock
 	tfBlockAddr
 	tfObject
@@ -117,9 +119,25 @@ func typeFeatures(t reflect.Type) (features typeFeature) {
 		features |= tfIndenterAddr
 	}
 
+	// MultiValue
+	switch t.Kind() {
+	case reflect.Slice:
+		// Slices of non-blocks get written out as multiple values with the
+		// same field name, unless they perform their own marshaling.
+		elemFeatures := typeFeatures(t.Elem())
+		if !features.Marshaler() && !elemFeatures.Block() {
+			features |= tfMultiValue
+		}
+		if !features.MarshalerAddr() && !elemFeatures.BlockAddr() {
+			features |= tfMultiValueAddr
+		}
+	}
+
 	// Block
 	switch t.Kind() {
 	case reflect.Struct, reflect.Slice:
+		// Structs and slices are considered blocks unless they perform
+		// their own marshaling.
 		if !features.Marshaler() {
 			features |= tfBlock
 		}
@@ -127,20 +145,6 @@ func typeFeatures(t reflect.Type) (features typeFeature) {
 			features |= tfBlockAddr
 		}
 	}
-
-	// TODO: Support automatic non-block slices of non-block elements?
-	/*
-		elem := t.Elem()
-		if elem.Kind() == reflect.Ptr {
-			elem = elem.Elem()
-		}
-		switch elem.Kind() {
-		case reflect.Struct:
-			if !elem.Implements(objectMarshalerType) && !elem.Implements(settingMarshalerType) {
-				features |= tfBlock
-			}
-		}
-	*/
 
 	return features
 }
@@ -199,6 +203,14 @@ func (tf typeFeature) Indenter() bool {
 
 func (tf typeFeature) IndenterAddr() bool {
 	return tf&tfIndenterAddr != 0
+}
+
+func (tf typeFeature) MultiValue() bool {
+	return tf&tfMultiValue != 0
+}
+
+func (tf typeFeature) MultiValueAddr() bool {
+	return tf&tfMultiValueAddr != 0
 }
 
 func (tf typeFeature) Block() bool {

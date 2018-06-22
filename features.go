@@ -144,6 +144,16 @@ func typeFeatures(t reflect.Type) (features typeFeature) {
 		if !features.MarshalerAddr() {
 			features |= tfBlockAddr
 		}
+	case reflect.Ptr:
+		// Pointers are considered blocks if their elements are, unless
+		// they perform their own marshaling.
+		elemFeatures := typeFeatures(t.Elem())
+		if !features.Marshaler() && !elemFeatures.Block() {
+			features |= tfMultiValue
+		}
+		if !features.MarshalerAddr() && !elemFeatures.BlockAddr() {
+			features |= tfMultiValueAddr
+		}
 	}
 
 	return features

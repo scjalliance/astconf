@@ -21,6 +21,8 @@ func newOmitEmptyEncoder(t reflect.Type, elemEnc encoderFunc) encoderFunc {
 		return enc.encodeUint
 	case reflect.String:
 		return enc.encodeString
+	case reflect.Slice:
+		return enc.encodeSlice
 	case reflect.Ptr:
 		return newIndirectEncoder(newOmitEmptyEncoder(t.Elem(), elemEnc))
 	default:
@@ -51,6 +53,13 @@ func (oee omitEmptyEncoder) encodeUint(v reflect.Value, e *Encoder) error {
 
 func (oee omitEmptyEncoder) encodeString(v reflect.Value, e *Encoder) error {
 	if v.String() == "" {
+		return nil
+	}
+	return oee.elemEnc(v, e)
+}
+
+func (oee omitEmptyEncoder) encodeSlice(v reflect.Value, e *Encoder) error {
+	if v.Len() == 0 {
 		return nil
 	}
 	return oee.elemEnc(v, e)

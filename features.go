@@ -128,7 +128,7 @@ func typeFeatures(t reflect.Type) (features typeFeature) {
 		if !features.Marshaler() && !elemFeatures.Block() {
 			features |= tfMultiValue
 		}
-		if !features.MarshalerAddr() && !elemFeatures.BlockAddr() {
+		if !features.Marshaler() && !features.MarshalerAddr() && !elemFeatures.Block() && !elemFeatures.BlockAddr() {
 			features |= tfMultiValueAddr
 		}
 	}
@@ -141,7 +141,7 @@ func typeFeatures(t reflect.Type) (features typeFeature) {
 		if !features.Marshaler() {
 			features |= tfBlock
 		}
-		if !features.MarshalerAddr() {
+		if !features.Marshaler() && !features.MarshalerAddr() {
 			features |= tfBlockAddr
 		}
 	case reflect.Ptr:
@@ -149,10 +149,10 @@ func typeFeatures(t reflect.Type) (features typeFeature) {
 		// they perform their own marshaling.
 		elemFeatures := typeFeatures(t.Elem())
 		if !features.Marshaler() && !elemFeatures.Block() {
-			features |= tfMultiValue
+			features |= tfBlock
 		}
-		if !features.MarshalerAddr() && !elemFeatures.BlockAddr() {
-			features |= tfMultiValueAddr
+		if !features.Marshaler() && !features.MarshalerAddr() && !elemFeatures.Block() && !elemFeatures.BlockAddr() {
+			features |= tfBlockAddr
 		}
 	}
 

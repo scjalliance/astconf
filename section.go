@@ -14,6 +14,11 @@ func (s SectionName) SectionName() string {
 	return string(s)
 }
 
+// MarshalAsterisk prevents the section name from being marshaled.
+func (s SectionName) MarshalAsterisk(e *Encoder) error {
+	return nil
+}
+
 /*
 // Section identifies a well-known section properties when embedded in a type.
 // The section name to be used is derived from its tag by the encoder.

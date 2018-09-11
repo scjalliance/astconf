@@ -1,23 +1,26 @@
 package dpmacontact
 
-// Entry is a DPMA contact entry.
+import "encoding/xml"
+
+// Entry is a DPMA contact entry that can be serialized as XML.
 type Entry struct {
-	Type            string   `xml:"contact_type,attr"`
-	PictureURL      string   `xml:"picture,attr"`
+	XMLName         xml.Name `xml:"contact"`
+	ServerUUID      string   `xml:"server_uuid,attr,omitempty"`
+	ID              string   `xml:"id,attr,omitempty"`
+	Prefix          string   `xml:"prefix,attr,omitempty"`
 	FirstName       string   `xml:"first_name,attr"`
-	PickupAction    string   `xml:"pickup_action,attr"`
 	SecondName      string   `xml:"second_name,attr,omitempty"`
-	JobTitle        string   `xml:"job_title,attr"`
-	LastName        string   `xml:"last_name,attr"`
-	Prefix          string   `xml:"prefix,attr"`
-	Organization    string   `xml:"organization,attr"`
-	ID              string   `xml:"id,attr"`
-	Suffix          string   `xml:"suffix,attr"`
-	Location        string   `xml:"location,attr"`
-	ServerUUID      string   `xml:"server_uuid,attr"`
-	SubscriptionURI string   `xml:"subscribe_to,attr"`
-	AccountID       string   `xml:"account_id,attr"`
-	Notes           string   `xml:"notes,attr"`
+	LastName        string   `xml:"last_name,attr,omitempty"`
+	Suffix          string   `xml:"suffix,attr,omitempty"`
+	Type            string   `xml:"contact_type,attr"`
+	Organization    string   `xml:"organization,attr,omitempty"`
+	JobTitle        string   `xml:"job_title,attr,omitempty"`
+	Location        string   `xml:"location,attr,omitempty"`
+	Notes           string   `xml:"notes,attr,omitempty"`
+	AccountID       string   `xml:"account_id,attr,omitempty"`
+	SubscriptionURI string   `xml:"subscribe_to,attr,omitempty"`
+	PictureURL      string   `xml:"picture,attr,omitempty"`
+	PickupAction    string   `xml:"pickup_action,attr,omitempty"`
 	Emails          []Email  `xml:"emails"`
-	Actions         []Action `xml:"actions"`
+	Actions         []Action `xml:"actions>action"`
 }

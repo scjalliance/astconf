@@ -96,8 +96,9 @@ func (p *Phone) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 
 // MergePhones returns the merged configuration of all the given phones,
 // in order of priority from least to greatest.
-func MergePhones(phones ...*Phone) (merged Phone) {
-	for _, phone := range phones {
+func MergePhones(phones ...Phone) (merged Phone) {
+	for i := range phones {
+		phone := &phones[i]
 		mergeStringSlice(&phone.Networks, &merged.Networks)
 		mergeStringSlice(&phone.Firmware, &merged.Firmware)
 		mergeString(&phone.MAC, &merged.MAC)

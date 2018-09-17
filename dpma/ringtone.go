@@ -14,7 +14,7 @@ type Ringtone struct {
 
 // SectionName returns the name of the ringtone section.
 func (r *Ringtone) SectionName() string {
-	return strings.ToLower(strings.Replace(string(r.Alias), " ", "", -1))
+	return strings.ToLower(strings.Replace(string(r.Alias), " ", "-", -1))
 }
 
 // MarshalAsteriskPreamble marshals the type.

@@ -20,8 +20,90 @@ type Person struct {
 	Ringtones          []string
 	Apps               []string
 	PagingGroups       []string
-	ContactGroups      []string
-	ContactNumbers     []Number // Additional phone numbers
-	Phones             []string // MACs of phones to be assigned this role
-	EmailAddresses     []Email
+	//ContactGroups      []string
+	ContactNumbers []Number // Additional phone numbers
+	Phones         []string // MACs of phones to be assigned this role
+	EmailAddresses []Email
+}
+
+// Equal reports whether p and q are equal.
+func (p *Person) Equal(q *Person) bool {
+	// Compare nil-ness
+	if p == nil && q == nil {
+		return true
+	}
+	if p == nil || q == nil {
+		return false
+	}
+
+	// Compare simple fields
+	if p.Extension != q.Extension {
+		return false
+	}
+	if p.Username != q.Username {
+		return false
+	}
+	if p.FirstName != q.FirstName {
+		return false
+	}
+	if p.LastName != q.LastName {
+		return false
+	}
+	if p.FullName != q.FullName {
+		return false
+	}
+	if p.Organization != q.Organization {
+		return false
+	}
+	if p.Title != q.Title {
+		return false
+	}
+	if p.Location != q.Location {
+		return false
+	}
+	if p.Hidden != q.Hidden {
+		return false
+	}
+	if p.CallerID != q.CallerID {
+		return false
+	}
+	if p.AreaCode != q.AreaCode {
+		return false
+	}
+	if p.Firmware != q.Firmware {
+		return false
+	}
+	if p.CalendarURL != q.CalendarURL {
+		return false
+	}
+	if p.VoicemailExtension != q.VoicemailExtension {
+		return false
+	}
+
+	// Compare slices
+	if !equalStrings(p.Ringtones, q.Ringtones) {
+		return false
+	}
+	if !equalStrings(p.Apps, q.Apps) {
+		return false
+	}
+	if !equalStrings(p.PagingGroups, q.PagingGroups) {
+		return false
+	}
+	/*
+		if !equalStringSlice(p.ContactGroups, q.ContactGroups) {
+			return false
+		}
+	*/
+	if !equalNumbers(p.ContactNumbers, q.ContactNumbers) {
+		return false
+	}
+	if !equalStrings(p.Phones, q.Phones) {
+		return false
+	}
+	if !equalEmails(p.EmailAddresses, q.EmailAddresses) {
+		return false
+	}
+
+	return true
 }

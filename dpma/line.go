@@ -34,8 +34,9 @@ func (line *Line) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 
 // MergeLines returns the merged configuration of all the given lines,
 // in order of priority from least to greatest.
-func MergeLines(lines ...*Line) (merged Line) {
-	for _, line := range lines {
+func MergeLines(lines ...Line) (merged Line) {
+	for i := range lines {
+		line := &lines[i]
 		mergeSectionName(&line.Name, &merged.Name)
 		mergeString(&line.Extension, &merged.Extension)
 		mergeString(&line.DigitMap, &merged.DigitMap)

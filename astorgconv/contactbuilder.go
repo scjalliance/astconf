@@ -5,7 +5,7 @@ import (
 	"github.com/scjalliance/astconf/dpmacontact"
 )
 
-// ContactBuilder constructs as slice of dpma contact entries for
+// ContactBuilder constructs a slice of dpma contact entries for
 // astorg types.
 //
 // An empty contact builder is ready for use.

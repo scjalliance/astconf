@@ -1,9 +1,9 @@
-package dpmacontact
+package digium
 
 import "encoding/xml"
 
-// Header is a header for a DPMA contact action.
-type Header struct {
+// ContactHeader is a header for a Digium contact action.
+type ContactHeader struct {
 	XMLName xml.Name `xml:"header"`
 	Key     string   `xml:"key,attr"`
 	Value   string   `xml:"value,attr"`

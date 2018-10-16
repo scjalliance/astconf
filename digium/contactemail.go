@@ -1,9 +1,9 @@
-package dpmacontact
+package digium
 
 import "encoding/xml"
 
-// Email is an email address within a DPMA contact entry.
-type Email struct {
+// ContactEmail is an email address within a Digium contact entry.
+type ContactEmail struct {
 	XMLName xml.Name `xml:"email"`
 	Address string   `xml:"address,attr"`
 	Label   string   `xml:"label,attr"`

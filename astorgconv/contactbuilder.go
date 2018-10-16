@@ -2,7 +2,7 @@ package astorgconv
 
 import (
 	"github.com/scjalliance/astconf/astorg"
-	"github.com/scjalliance/astconf/dpmacontact"
+	"github.com/scjalliance/astconf/digium"
 )
 
 // ContactBuilder constructs a slice of dpma contact entries for
@@ -10,7 +10,7 @@ import (
 //
 // An empty contact builder is ready for use.
 type ContactBuilder struct {
-	contacts []dpmacontact.Entry
+	contacts []digium.Contact
 	locs     map[string]astorg.Location
 }
 
@@ -26,7 +26,7 @@ func (builder *ContactBuilder) AddLocation(locations ...astorg.Location) {
 // TODO: Let the caller provide some sort of non-default conversion function?
 func (builder *ContactBuilder) AddPerson(people ...astorg.Person) {
 	for _, person := range people {
-		contact := dpmacontact.Entry{
+		contact := digium.Contact{
 			//ServerUUID:      person.Server,
 			Type:            "sip",
 			FirstName:       person.FirstName,
@@ -36,8 +36,8 @@ func (builder *ContactBuilder) AddPerson(people ...astorg.Person) {
 			Location:        person.Location,
 			SubscriptionURI: "auto_hint_" + person.Username,
 			AccountID:       person.Extension,
-			Actions: []dpmacontact.Action{
-				dpmacontact.Action{
+			Actions: []digium.ContactAction{
+				digium.ContactAction{
 					ID:    "primary",
 					Label: "Desk Phone",
 					Name:  "Desk Phone",
@@ -46,7 +46,7 @@ func (builder *ContactBuilder) AddPerson(people ...astorg.Person) {
 			},
 		}
 		for _, number := range person.ContactNumbers {
-			contact.Actions = append(contact.Actions, dpmacontact.Action{
+			contact.Actions = append(contact.Actions, digium.ContactAction{
 				ID:         sanitizeNameUnderscored(number.Label),
 				Label:      number.Label,
 				Name:       number.Label,
@@ -55,17 +55,17 @@ func (builder *ContactBuilder) AddPerson(people ...astorg.Person) {
 			})
 		}
 		if person.VoicemailExtension != "" {
-			contact.Actions = append(contact.Actions, dpmacontact.Action{
+			contact.Actions = append(contact.Actions, digium.ContactAction{
 				ID:    "send_to_vm",
 				Label: "Voicemail",
 				Name:  "Voicemail",
 				Dial:  person.VoicemailExtension,
-				Headers: []dpmacontact.Header{
-					dpmacontact.Header{
+				Headers: []digium.ContactHeader{
+					digium.ContactHeader{
 						Key:   "X-Digium-Call-Feature",
 						Value: "feature_send_to_vm",
 					},
-					dpmacontact.Header{
+					digium.ContactHeader{
 						Key:   "Diversion",
 						Value: `<sip:%_ACCOUNT_USERNAME_%@%_ACCOUNT_SERVER_%:%_ACCOUNT_PORT_%>;reason="send_to_vm"`,
 					},
@@ -73,7 +73,7 @@ func (builder *ContactBuilder) AddPerson(people ...astorg.Person) {
 			})
 		}
 		for _, email := range person.EmailAddresses {
-			contact.Emails = append(contact.Emails, dpmacontact.Email{
+			contact.Emails = append(contact.Emails, digium.ContactEmail{
 				Address: email.Address,
 				Label:   email.Label,
 				Primary: email.Primary,
@@ -88,15 +88,15 @@ func (builder *ContactBuilder) AddPerson(people ...astorg.Person) {
 // TODO: Let the caller provide some sort of non-default conversion function?
 func (builder *ContactBuilder) AddPhoneRole(roles ...astorg.PhoneRole) {
 	for _, role := range roles {
-		contact := dpmacontact.Entry{
+		contact := digium.Contact{
 			//ServerUUID:      person.Server,
 			Type:            "sip",
 			FirstName:       role.DisplayName,
 			Location:        role.Location,
 			SubscriptionURI: "auto_hint_" + role.Username,
 			AccountID:       role.Extension,
-			Actions: []dpmacontact.Action{
-				dpmacontact.Action{
+			Actions: []digium.ContactAction{
+				digium.ContactAction{
 					ID:    "primary",
 					Label: "Desk Phone",
 					Name:  "Desk Phone",
@@ -109,13 +109,13 @@ func (builder *ContactBuilder) AddPhoneRole(roles ...astorg.PhoneRole) {
 }
 
 // AddCustom adds custom contact entries to the builder.
-func (builder *ContactBuilder) AddCustom(contacts ...dpmacontact.Entry) {
+func (builder *ContactBuilder) AddCustom(contacts ...digium.Contact) {
 	builder.contacts = append(builder.contacts, contacts...)
 }
 
 // Group returns a compiled group from the builder.
-func (builder *ContactBuilder) Group(name, id string) dpmacontact.Group {
-	return dpmacontact.Group{
+func (builder *ContactBuilder) Group(name, id string) digium.ContactGroup {
+	return digium.ContactGroup{
 		Name:     name,
 		ID:       id,
 		Contacts: builder.contacts,

@@ -5,7 +5,7 @@ import (
 	"github.com/scjalliance/astconf/digium"
 )
 
-// ContactBuilder constructs a slice of dpma contact entries for
+// ContactBuilder constructs a slice of digium contact entries for
 // astorg types.
 //
 // An empty contact builder is ready for use.
@@ -28,6 +28,7 @@ func (builder *ContactBuilder) AddPerson(people ...astorg.Person) {
 	for _, person := range people {
 		contact := digium.Contact{
 			//ServerUUID:      person.Server,
+			ID:              person.Username,
 			Type:            "sip",
 			FirstName:       person.FirstName,
 			LastName:        person.LastName,
@@ -90,6 +91,7 @@ func (builder *ContactBuilder) AddPhoneRole(roles ...astorg.PhoneRole) {
 	for _, role := range roles {
 		contact := digium.Contact{
 			//ServerUUID:      person.Server,
+			ID:              role.Username,
 			Type:            "sip",
 			FirstName:       role.DisplayName,
 			Location:        role.Location,
@@ -122,7 +124,7 @@ func (builder *ContactBuilder) Group(name, id string) digium.ContactGroup {
 	}
 }
 
-// Reset purges the current contact set from the builder.
+// Reset purges the current contact list from the builder.
 func (builder *ContactBuilder) Reset() {
 	builder.contacts = nil
 }

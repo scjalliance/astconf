@@ -6,5 +6,5 @@ import "encoding/xml"
 // serialized as XML.
 type SmartBLF struct {
 	XMLName xml.Name  `xml:"smart_blf"`
-	Fields  FieldList `xml:"blf_items,omitempty"`
+	Fields  FieldList `xml:"blf_items"`
 }

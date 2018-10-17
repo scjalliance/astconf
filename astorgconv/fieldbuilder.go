@@ -24,7 +24,7 @@ func (builder *FieldBuilder) AddLocation(locations ...astorg.Location) {
 // AddPerson adds a contact entry for each person to the builder.
 //
 // TODO: Let the caller provide some sort of non-default conversion function?
-func (builder *FieldBuilder) AddPerson(location string, index int, people ...astorg.Person) {
+func (builder *FieldBuilder) AddPerson(location string, index int, people ...astorg.Person) (next int) {
 	for _, person := range people {
 		field := digium.Field{
 			Location:  location,
@@ -33,14 +33,16 @@ func (builder *FieldBuilder) AddPerson(location string, index int, people ...ast
 			ContactID: person.Username,
 		}
 		builder.fields = append(builder.fields, field)
+		index++
 	}
+	return index
 }
 
 // AddPhoneRole adds a busy lamp field entry for each phone role to
-// the builder.
+// the builder, starting at index. It returns the next index.
 //
 // TODO: Let the caller provide some sort of non-default conversion function?
-func (builder *FieldBuilder) AddPhoneRole(location string, index int, roles ...astorg.PhoneRole) {
+func (builder *FieldBuilder) AddPhoneRole(location string, index int, roles ...astorg.PhoneRole) (next int) {
 	for _, role := range roles {
 		field := digium.Field{
 			Location:  location,
@@ -49,12 +51,18 @@ func (builder *FieldBuilder) AddPhoneRole(location string, index int, roles ...a
 			ContactID: role.Username,
 		}
 		builder.fields = append(builder.fields, field)
+		index++
 	}
+	return index
 }
 
 // AddCustom adds custom busy lamp field entries to the builder.
-func (builder *FieldBuilder) AddCustom(fields ...digium.Field) {
+func (builder *FieldBuilder) AddCustom(fields ...digium.Field) (next int) {
 	builder.fields = append(builder.fields, fields...)
+	if len(fields) == 0 {
+		return 0
+	}
+	return fields[len(fields)-1].Index + 1
 }
 
 // Fields returns a compiled field list from the builder.

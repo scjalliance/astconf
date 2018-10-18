@@ -13,12 +13,12 @@ type String struct {
 	specified bool
 }
 
-// NewString returns an string with the given value.
+// NewString returns a string with the given value.
 func NewString(value int) Int {
 	return Int{value: value, specified: true}
 }
 
-// Set applies value to i.
+// Set applies value to s.
 func (s *String) Set(value string) {
 	s.value = value
 	s.specified = true

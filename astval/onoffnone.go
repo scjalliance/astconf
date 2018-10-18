@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-// OnOffNone is a boolean value that will be marshaled as "on" or "off".
+// OnOffNone is a ternary value that will be marshaled as "on" or "off".
 //
 // Its zero value indicates an unspecified condition that will not be
 // marshaled.

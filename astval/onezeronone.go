@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-// OneZeroNone is a boolean value that will be marshaled as "1" or "0".
+// OneZeroNone is a ternary value that will be marshaled as "1" or "0".
 //
 // Its zero value indicates an unspecified condition that will not be
 // marshaled.

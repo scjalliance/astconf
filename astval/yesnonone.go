@@ -6,13 +6,13 @@ import (
 	"io"
 )
 
-// YesNoNone is a boolean value that will be marshaled as "yes" or "no".
+// YesNoNone is a ternary value that will be marshaled as "yes" or "no".
 //
 // Its zero value indicates an unspecified condition that will not be
 // marshaled.
 type YesNoNone ternary
 
-// Boolean states
+// Boolean states for Yes/No.
 var (
 	Yes = YesNoNone(ternaryTrue)
 	No  = YesNoNone(ternaryFalse)

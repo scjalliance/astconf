@@ -29,7 +29,6 @@ func (builder *FieldBuilder) AddPerson(location string, index int, people ...ast
 		field := digium.Field{
 			Location:  location,
 			Index:     index,
-			Paging:    true,
 			ContactID: person.Username,
 		}
 		builder.fields = append(builder.fields, field)
@@ -47,7 +46,6 @@ func (builder *FieldBuilder) AddPhoneRole(location string, index int, roles ...a
 		field := digium.Field{
 			Location:  location,
 			Index:     index,
-			Paging:    true,
 			ContactID: role.Username,
 		}
 		builder.fields = append(builder.fields, field)

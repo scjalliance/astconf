@@ -5,9 +5,9 @@ import (
 	"github.com/scjalliance/astconf/digium"
 )
 
-// Builder constructs a slice of digium contact entries.
+// Builder constructs a slice of digium busy lamp field entries.
 //
-// An empty contact builder is ready for use.
+// An empty field builder is ready for use.
 type Builder struct {
 	fields digium.FieldList
 }

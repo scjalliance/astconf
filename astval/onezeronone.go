@@ -33,7 +33,7 @@ func (t OneZeroNone) Specified() bool {
 	return ternary(t).Specified()
 }
 
-// MarshalText marshals the boolean as "1", "0" or nil.
+// MarshalText marshals the ternary value as "1", "0" or nil.
 func (t OneZeroNone) MarshalText() ([]byte, error) {
 	switch {
 	case ternary(t).True():

@@ -33,7 +33,7 @@ func (t YesNoNone) Specified() bool {
 	return ternary(t).Specified()
 }
 
-// MarshalText marshals the boolean as "on" or "off".
+// MarshalText marshals the ternary value as "on", "off" or nil.
 func (t YesNoNone) MarshalText() ([]byte, error) {
 	switch {
 	case ternary(t).True():
@@ -45,7 +45,7 @@ func (t YesNoNone) MarshalText() ([]byte, error) {
 	}
 }
 
-// UnmarshalText parses "on" or "off" as a boolean value.
+// UnmarshalText parses "on", "off" or "" as a ternary value.
 func (t *YesNoNone) UnmarshalText(text []byte) error {
 	switch {
 	case len(text) == 0:

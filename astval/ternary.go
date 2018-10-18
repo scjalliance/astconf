@@ -3,8 +3,8 @@ package astval
 // Ternary constants.
 const (
 	ternaryUnspecified ternary = 0
-	ternaryTrue        ternary = 1 // For convenience, but not the only value for true
-	ternaryFalse       ternary = 'F'
+	ternaryTrue        ternary = 1             // For convenience, but not the only value for true
+	ternaryFalse       ternary = 'F'           // An arbitrary non-zero constant used to represent false
 	ternaryTrueMask    ternary = ^ternaryFalse // Any value besides 0 and 'F' is considered true
 )
 

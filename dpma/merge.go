@@ -13,7 +13,7 @@ func mergeSectionName(from, to *astconf.SectionName) {
 	}
 }
 
-func mergeAstYesNo(from, to *astval.YesNo) {
+func mergeAstYesNoNone(from, to *astval.YesNoNone) {
 	if (*from).Specified() {
 		*to = *from
 	}

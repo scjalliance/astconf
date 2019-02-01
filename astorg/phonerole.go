@@ -2,17 +2,18 @@ package astorg
 
 // PhoneRole is a role that is assigned to a particular phone.
 type PhoneRole struct {
-	Extension    string
-	Username     string
-	DisplayName  string
-	Location     string
-	AreaCode     string
-	Firmware     string
-	Hidden       bool // Hidden from organization contact groups
-	CallerID     string
-	Apps         []string
-	PagingGroups []string
-	Phones       []string // MACs of phones to be assigned this role
+	Extension      string
+	Username       string
+	DisplayName    string
+	Location       string
+	AreaCode       string
+	Firmware       string
+	Hidden         bool // Hidden from organization contact groups
+	ContactsSource string
+	CallerID       string
+	Apps           []string
+	PagingGroups   []string
+	Phones         []string // MACs of phones to be assigned this role
 }
 
 // Equal reports whether p and q are equal.

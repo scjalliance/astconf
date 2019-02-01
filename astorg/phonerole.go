@@ -48,6 +48,9 @@ func (p *PhoneRole) Equal(q *PhoneRole) bool {
 	if p.Hidden != q.Hidden {
 		return false
 	}
+	if p.ContactsSource != q.ContactsSource {
+		return false
+	}
 	if p.CallerID != q.CallerID {
 		return false
 	}

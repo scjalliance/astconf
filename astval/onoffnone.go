@@ -58,7 +58,7 @@ func (t *OnOffNone) UnmarshalText(text []byte) error {
 		*t = OnOffNone(ternaryFalse)
 		return nil
 	default:
-		return fmt.Errorf("cannot marshal \"%s\" as on/off value")
+		return fmt.Errorf("cannot marshal \"%s\" as on/off value", string(text))
 	}
 }
 

@@ -58,7 +58,7 @@ func (t *OneZeroNone) UnmarshalText(text []byte) error {
 		*t = OneZeroNone(ternaryTrue)
 		return nil
 	default:
-		return fmt.Errorf("cannot marshal \"%s\" as 1/0 value")
+		return fmt.Errorf("cannot marshal \"%s\" as 1/0 value", string(text))
 	}
 }
 

@@ -39,6 +39,6 @@ func (b *OneZero) UnmarshalText(text []byte) error {
 		*b = OneZero(false)
 		return nil
 	default:
-		return fmt.Errorf("cannot unmarshal \"%s\" as 1/0 value")
+		return fmt.Errorf("cannot unmarshal \"%s\" as 1/0 value", string(text))
 	}
 }

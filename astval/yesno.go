@@ -39,6 +39,6 @@ func (b *YesNo) UnmarshalText(text []byte) error {
 		*b = YesNo(false)
 		return nil
 	default:
-		return fmt.Errorf("cannot marshal \"%s\" as yes/no value")
+		return fmt.Errorf("cannot marshal \"%s\" as yes/no value", string(text))
 	}
 }

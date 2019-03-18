@@ -2,14 +2,14 @@ package astorg
 
 // Location represents the location of a person or phone.
 type Location struct {
-	Name                  string
-	Server                string
-	Network               string
-	Timezone              string
-	UnassignedPhonePrefix string
-	CallerID              string
-	AreaCode              string
-	PagingGroups          []string
+	Name         string
+	Abbreviation string
+	Server       string
+	Network      string
+	Timezone     string
+	CallerID     string
+	AreaCode     string
+	PagingGroups []string
 }
 
 // Equal reports whether p and q are equal.
@@ -26,6 +26,9 @@ func (a *Location) Equal(b *Location) bool {
 	if a.Name != b.Name {
 		return false
 	}
+	if a.Abbreviation != b.Abbreviation {
+		return false
+	}
 	if a.Server != b.Server {
 		return false
 	}
@@ -33,9 +36,6 @@ func (a *Location) Equal(b *Location) bool {
 		return false
 	}
 	if a.Timezone != b.Timezone {
-		return false
-	}
-	if a.UnassignedPhonePrefix != b.UnassignedPhonePrefix {
 		return false
 	}
 	if a.CallerID != b.CallerID {

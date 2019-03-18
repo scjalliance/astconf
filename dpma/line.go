@@ -2,6 +2,7 @@ package dpma
 
 import (
 	"github.com/scjalliance/astconf"
+	"github.com/scjalliance/astconf/astmerge"
 	"github.com/scjalliance/astconf/astval"
 )
 
@@ -37,24 +38,24 @@ func (line *Line) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 func MergeLines(lines ...Line) (merged Line) {
 	for i := range lines {
 		line := &lines[i]
-		mergeSectionName(&line.Name, &merged.Name)
-		mergeString(&line.Extension, &merged.Extension)
-		mergeString(&line.DigitMap, &merged.DigitMap)
-		mergeString(&line.Label, &merged.Label)
-		mergeString(&line.Mailbox, &merged.Mailbox)
-		mergeString(&line.VoicemailURI, &merged.VoicemailURI)
-		mergeString(&line.OutboundProxyAddress, &merged.OutboundProxyAddress)
-		mergeString(&line.OutboundProxyPort, &merged.OutboundProxyPort)
-		mergeString(&line.Transport, &merged.Transport)
-		mergeString(&line.MediaEncryption, &merged.MediaEncryption)
-		mergeAstSeconds(&line.RegistrationTimeout, &merged.RegistrationTimeout)
-		mergeAstSeconds(&line.RegistrationRetryInterval, &merged.RegistrationRetryInterval)
-		mergeAstInt(&line.RegistrationMaxRetries, &merged.RegistrationMaxRetries)
-		mergeString(&line.Secret, &merged.Secret)
-		mergeString(&line.Context, &merged.Context)
-		mergeString(&line.CallerID, &merged.CallerID)
-		mergeString(&line.SubscribeContext, &merged.SubscribeContext)
-		mergeString(&line.PlarNumber, &merged.PlarNumber)
+		astmerge.SectionName(&line.Name, &merged.Name)
+		astmerge.String(&line.Extension, &merged.Extension)
+		astmerge.String(&line.DigitMap, &merged.DigitMap)
+		astmerge.String(&line.Label, &merged.Label)
+		astmerge.String(&line.Mailbox, &merged.Mailbox)
+		astmerge.String(&line.VoicemailURI, &merged.VoicemailURI)
+		astmerge.String(&line.OutboundProxyAddress, &merged.OutboundProxyAddress)
+		astmerge.String(&line.OutboundProxyPort, &merged.OutboundProxyPort)
+		astmerge.String(&line.Transport, &merged.Transport)
+		astmerge.String(&line.MediaEncryption, &merged.MediaEncryption)
+		astmerge.AstSeconds(&line.RegistrationTimeout, &merged.RegistrationTimeout)
+		astmerge.AstSeconds(&line.RegistrationRetryInterval, &merged.RegistrationRetryInterval)
+		astmerge.AstInt(&line.RegistrationMaxRetries, &merged.RegistrationMaxRetries)
+		astmerge.String(&line.Secret, &merged.Secret)
+		astmerge.String(&line.Context, &merged.Context)
+		astmerge.String(&line.CallerID, &merged.CallerID)
+		astmerge.String(&line.SubscribeContext, &merged.SubscribeContext)
+		astmerge.String(&line.PlarNumber, &merged.PlarNumber)
 	}
 	return
 }

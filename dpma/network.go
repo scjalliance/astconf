@@ -2,6 +2,7 @@ package dpma
 
 import (
 	"github.com/scjalliance/astconf"
+	"github.com/scjalliance/astconf/astmerge"
 	"github.com/scjalliance/astconf/astval"
 )
 
@@ -37,30 +38,30 @@ type Network struct {
 // in order of priority from least to greatest.
 func MergeNetworks(networks ...*Network) (merged Network) {
 	for _, network := range networks {
-		mergeSectionName(&network.Name, &merged.Name)
-		mergeString(&network.Alias, &merged.Alias)
-		mergeString(&network.CIDR, &merged.CIDR)
-		mergeString(&network.RegistrationAddress, &merged.RegistrationAddress)
-		mergeInt(&network.RegistrationPort, &merged.RegistrationPort)
-		mergeString(&network.Transport, &merged.Transport)
-		mergeString(&network.AlternateRegistrationAddress, &merged.AlternateRegistrationAddress)
-		mergeInt(&network.AlternateRegistrationPort, &merged.AlternateRegistrationPort)
-		mergeString(&network.AlternateTransport, &merged.AlternateTransport)
-		mergeString(&network.FileURLPrefix, &merged.FileURLPrefix)
-		mergeString(&network.PublicFirmwareURLPrefix, &merged.PublicFirmwareURLPrefix)
-		mergeString(&network.NTPServer, &merged.NTPServer)
-		mergeString(&network.SyslogServer, &merged.SyslogServer)
-		mergeInt(&network.SyslogPort, &merged.SyslogPort)
-		mergeString(&network.SyslogLevel, &merged.SyslogLevel)
-		mergeString(&network.NetworkVLANDiscoveryMode, &merged.NetworkVLANDiscoveryMode)
-		mergeAstInt(&network.SIPQOS, &merged.SIPQOS)
-		mergeAstInt(&network.RTPQOS, &merged.RTPQOS)
-		mergeAstInt(&network.NetworkVLANID, &merged.NetworkVLANID)
-		mergeAstInt(&network.PCVLANID, &merged.PCVLANID)
-		mergeAstInt(&network.PCQOS, &merged.PCQOS)
-		mergeAstInt(&network.SIPDSCP, &merged.SIPDSCP)
-		mergeAstInt(&network.RTPDSCP, &merged.RTPDSCP)
-		mergeAstSeconds(&network.UDPKAInterval, &merged.UDPKAInterval)
+		astmerge.SectionName(&network.Name, &merged.Name)
+		astmerge.String(&network.Alias, &merged.Alias)
+		astmerge.String(&network.CIDR, &merged.CIDR)
+		astmerge.String(&network.RegistrationAddress, &merged.RegistrationAddress)
+		astmerge.Int(&network.RegistrationPort, &merged.RegistrationPort)
+		astmerge.String(&network.Transport, &merged.Transport)
+		astmerge.String(&network.AlternateRegistrationAddress, &merged.AlternateRegistrationAddress)
+		astmerge.Int(&network.AlternateRegistrationPort, &merged.AlternateRegistrationPort)
+		astmerge.String(&network.AlternateTransport, &merged.AlternateTransport)
+		astmerge.String(&network.FileURLPrefix, &merged.FileURLPrefix)
+		astmerge.String(&network.PublicFirmwareURLPrefix, &merged.PublicFirmwareURLPrefix)
+		astmerge.String(&network.NTPServer, &merged.NTPServer)
+		astmerge.String(&network.SyslogServer, &merged.SyslogServer)
+		astmerge.Int(&network.SyslogPort, &merged.SyslogPort)
+		astmerge.String(&network.SyslogLevel, &merged.SyslogLevel)
+		astmerge.String(&network.NetworkVLANDiscoveryMode, &merged.NetworkVLANDiscoveryMode)
+		astmerge.AstInt(&network.SIPQOS, &merged.SIPQOS)
+		astmerge.AstInt(&network.RTPQOS, &merged.RTPQOS)
+		astmerge.AstInt(&network.NetworkVLANID, &merged.NetworkVLANID)
+		astmerge.AstInt(&network.PCVLANID, &merged.PCVLANID)
+		astmerge.AstInt(&network.PCQOS, &merged.PCQOS)
+		astmerge.AstInt(&network.SIPDSCP, &merged.SIPDSCP)
+		astmerge.AstInt(&network.RTPDSCP, &merged.RTPDSCP)
+		astmerge.AstSeconds(&network.UDPKAInterval, &merged.UDPKAInterval)
 	}
 	return
 }

@@ -71,7 +71,7 @@ func (d *DataSet) Equal(e *DataSet) bool {
 
 	// Compare slice values
 	for i := range d.Locations {
-		if d.Locations[i] != e.Locations[i] {
+		if d.Locations[i].Equal(&e.Locations[i]) {
 			return false
 		}
 	}

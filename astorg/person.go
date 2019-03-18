@@ -20,10 +20,9 @@ type Person struct {
 	Ringtones          []string
 	Apps               []string
 	PagingGroups       []string
-	//ContactGroups      []string
-	ContactNumbers []Number // Additional phone numbers
-	Phones         []string // MACs of phones to be assigned this role
-	EmailAddresses []Email
+	ContactNumbers     []Number // Additional phone numbers
+	Phones             []string // MACs of phones to be assigned this role
+	EmailAddresses     []Email
 }
 
 // Equal reports whether p and q are equal.

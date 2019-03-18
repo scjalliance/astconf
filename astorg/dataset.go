@@ -1,5 +1,7 @@
 package astorg
 
+import "strings"
+
 // DataSet represents a complete dataset for an organization.
 type DataSet struct {
 	Locations  []Location
@@ -16,6 +18,39 @@ func (d *DataSet) Size() int {
 	length += len(d.PhoneRoles)
 	length += len(d.Phones)
 	return length
+}
+
+// Lookup returns a lookup constructed from the data set.
+func (d *DataSet) Lookup() Lookup {
+	lookup := Lookup{
+		LocationByName: make(map[string]Location),
+		PersonByEmail:  make(map[string]Person),
+		PersonByNumber: make(map[string]Person),
+		RoleByUsername: make(map[string]PhoneRole),
+		RoleByNumber:   make(map[string]PhoneRole),
+	}
+	for _, location := range d.Locations {
+		if location.Name != "" {
+			lookup.LocationByName[location.Name] = location
+		}
+	}
+	for _, person := range d.People {
+		for _, address := range person.EmailAddresses {
+			lookup.PersonByEmail[strings.ToLower(address.Address)] = person
+		}
+		if person.Extension != "" {
+			lookup.PersonByNumber[person.Extension] = person
+		}
+	}
+	for _, role := range d.PhoneRoles {
+		if role.Username != "" {
+			lookup.RoleByUsername[role.Username] = role
+		}
+		if role.Extension != "" {
+			lookup.RoleByNumber[role.Extension] = role
+		}
+	}
+	return lookup
 }
 
 // Equal reports whether d and e are equal.

@@ -17,6 +17,7 @@ type Person struct {
 	Firmware           string
 	CalendarURL        string
 	VoicemailExtension string
+	VoicemailCode      string
 	Ringtones          []string
 	Apps               []string
 	PagingGroups       []string
@@ -78,6 +79,9 @@ func (p *Person) Equal(q *Person) bool {
 	if p.VoicemailExtension != q.VoicemailExtension {
 		return false
 	}
+	if p.VoicemailCode != q.VoicemailCode {
+		return false
+	}
 
 	// Compare slices
 	if !equalStrings(p.Ringtones, q.Ringtones) {
@@ -89,11 +93,6 @@ func (p *Person) Equal(q *Person) bool {
 	if !equalStrings(p.PagingGroups, q.PagingGroups) {
 		return false
 	}
-	/*
-		if !equalStringSlice(p.ContactGroups, q.ContactGroups) {
-			return false
-		}
-	*/
 	if !equalNumbers(p.ContactNumbers, q.ContactNumbers) {
 		return false
 	}

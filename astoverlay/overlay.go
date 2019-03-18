@@ -1,4 +1,4 @@
-package astmerge
+package astoverlay
 
 import (
 	"time"

@@ -1,5 +1,7 @@
 package astorg
 
+import "github.com/scjalliance/astconf/astoverlay"
+
 // Location represents the location of a person or phone.
 type Location struct {
 	Name         string
@@ -51,4 +53,21 @@ func (a *Location) Equal(b *Location) bool {
 	}
 
 	return true
+}
+
+// OverlayLocations returns the overlayed configuration of all the given
+// locations, in order of priority from least to greatest.
+func OverlayLocations(locations ...Location) (overlayed Location) {
+	for i := range locations {
+		loc := &locations[i]
+		astoverlay.String(&loc.Name, &overlayed.Name)
+		astoverlay.String(&loc.Abbreviation, &overlayed.Abbreviation)
+		astoverlay.String(&loc.Server, &overlayed.Server)
+		astoverlay.String(&loc.Network, &overlayed.Network)
+		astoverlay.String(&loc.Timezone, &overlayed.Timezone)
+		astoverlay.String(&loc.CallerID, &overlayed.CallerID)
+		astoverlay.String(&loc.AreaCode, &overlayed.AreaCode)
+		astoverlay.StringSlice(&loc.PagingGroups, &overlayed.PagingGroups)
+	}
+	return
 }

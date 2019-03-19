@@ -1,6 +1,8 @@
 package dpma
 
 import (
+	"strings"
+
 	"github.com/scjalliance/astconf"
 	"github.com/scjalliance/astconf/astoverlay"
 	"github.com/scjalliance/astconf/astval"
@@ -8,7 +10,7 @@ import (
 
 // Line is a DPMA line definition.
 type Line struct {
-	Name                      astconf.SectionName
+	Name                      string         `astconf:"-"`
 	Extension                 string         `astconf:"exten,omitempty"`
 	DigitMap                  string         `astconf:"digit_map,omitempty"`
 	Label                     string         `astconf:"line_label,omitempty"`
@@ -28,6 +30,11 @@ type Line struct {
 	PlarNumber                string         `astconf:"plar_number,omitempty"`
 }
 
+// SectionName returns the name of the line section.
+func (line *Line) SectionName() string {
+	return strings.ToLower(strings.Replace(line.Name, ":", "", -1))
+}
+
 // MarshalAsteriskPreamble marshals the type.
 func (line *Line) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 	return e.Printer().Setting("type", "line")
@@ -38,7 +45,7 @@ func (line *Line) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 func OverlayLines(lines ...Line) (overlayed Line) {
 	for i := range lines {
 		line := &lines[i]
-		astoverlay.SectionName(&line.Name, &overlayed.Name)
+		astoverlay.String(&line.Name, &overlayed.Name)
 		astoverlay.String(&line.Extension, &overlayed.Extension)
 		astoverlay.String(&line.DigitMap, &overlayed.DigitMap)
 		astoverlay.String(&line.Label, &overlayed.Label)

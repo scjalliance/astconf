@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/scjalliance/astconf"
+	"github.com/scjalliance/astconf/astmerge"
 	"github.com/scjalliance/astconf/astoverlay"
 	"github.com/scjalliance/astconf/astval"
 )
@@ -84,10 +85,10 @@ type Phone struct {
 	TransportTLSAllowed astval.YesNoNone `astconf:"transport_tls_allowed"`
 }
 
-// SectionName returns the name of the ringtone section.
+// SectionName returns the name of the phone section.
 func (p *Phone) SectionName() string {
 	// FIXME: Generate an alternate name if the phone doesn't have a MAC
-	return strings.ToLower(strings.Replace(string(p.MAC), ":", "", -1))
+	return strings.ToLower(strings.Replace(p.MAC, ":", "", -1))
 }
 
 // MarshalAsteriskPreamble marshals the type.
@@ -99,73 +100,106 @@ func (p *Phone) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 // in order of priority from least to greatest.
 func OverlayPhones(phones ...Phone) (overlayed Phone) {
 	for i := range phones {
-		phone := &phones[i]
-		astoverlay.StringSlice(&phone.Networks, &overlayed.Networks)
-		astoverlay.StringSlice(&phone.Firmware, &overlayed.Firmware)
-		astoverlay.String(&phone.MAC, &overlayed.MAC)
-		astoverlay.String(&phone.PIN, &overlayed.PIN)
-		astoverlay.Int(&phone.GroupPIN, &overlayed.GroupPIN)
-		astoverlay.StringSlice(&phone.Lines, &overlayed.Lines)
-		astoverlay.String(&phone.ExternalLine, &overlayed.ExternalLine)
-		astoverlay.StringSlice(&phone.Applications, &overlayed.Applications)
-		astoverlay.String(&phone.ConfigFile, &overlayed.ConfigFile)
-		astoverlay.String(&phone.FullName, &overlayed.FullName)
-		astoverlay.StringSlice(&phone.Contacts, &overlayed.Contacts)
-		astoverlay.String(&phone.ContactsDisplayRules, &overlayed.ContactsDisplayRules)
-		astoverlay.String(&phone.BLFContactGroup, &overlayed.BLFContactGroup)
-		astoverlay.String(&phone.BLFItems, &overlayed.BLFItems)
-		astoverlay.AstSeconds(&phone.BLFPageReturnTimeout, &overlayed.BLFPageReturnTimeout)
-		astoverlay.Int(&phone.ContactsMaxSubscriptions, &overlayed.ContactsMaxSubscriptions)
-		astoverlay.String(&phone.Timezone, &overlayed.Timezone)
-		astoverlay.AstSeconds(&phone.NTPResync, &overlayed.NTPResync)
-		astoverlay.Int(&phone.ParkingExtension, &overlayed.ParkingExtension)
-		astoverlay.String(&phone.ParkingTransferType, &overlayed.ParkingTransferType)
-		astoverlay.AstYesNoNone(&phone.ShowCallParking, &overlayed.ShowCallParking)
-		astoverlay.StringSlice(&phone.Ringtones, &overlayed.Ringtones)
-		astoverlay.String(&phone.ActiveRingtone, &overlayed.ActiveRingtone)
-		astoverlay.AstYesNoNone(&phone.WebUIEnabled, &overlayed.WebUIEnabled)
-		astoverlay.AstYesNoNone(&phone.RecordOwnCalls, &overlayed.RecordOwnCalls)
-		astoverlay.AstYesNoNone(&phone.CanForwardCalls, &overlayed.CanForwardCalls)
-		astoverlay.AstYesNoNone(&phone.ShowCallLog, &overlayed.ShowCallLog)
-		astoverlay.AstYesNoNone(&phone.LogOutEnabled, &overlayed.LogOutEnabled)
-		astoverlay.StringSlice(&phone.Alerts, &overlayed.Alerts)
-		astoverlay.StringSlice(&phone.MulticastPage, &overlayed.MulticastPage)
-		astoverlay.AstYesNoNone(&phone.BLFUnusedLineKeys, &overlayed.BLFUnusedLineKeys)
-		astoverlay.AstYesNoNone(&phone.SendToVoicemail, &overlayed.SendToVoicemail)
-		overlayLogoFileSlice(&phone.LogoFiles, &overlayed.LogoFiles)
-		astoverlay.String(&phone.WallpaperFile, &overlayed.WallpaperFile)
-		astoverlay.String(&phone.EHS, &overlayed.EHS)
-		astoverlay.AstYesNoNone(&phone.LockPreferences, &overlayed.LockPreferences)
-		astoverlay.Int(&phone.LoginPassword, &overlayed.LoginPassword)
-		astoverlay.String(&phone.AcceptLocalCalls, &overlayed.AcceptLocalCalls)
-		astoverlay.AstYesNoNone(&phone.DisplayMCNotification, &overlayed.DisplayMCNotification)
-		astoverlay.String(&phone.IdleCompanyText, &overlayed.IdleCompanyText)
-		astoverlay.AstYesNoNone(&phone.SmallClock, &overlayed.SmallClock)
-		astoverlay.Int(&phone.DefaultFontSize, &overlayed.DefaultFontSize)
-		astoverlay.AstInt(&phone.Brightness, &overlayed.Brightness)
-		astoverlay.AstInt(&phone.Contrast, &overlayed.Contrast)
-		astoverlay.AstYesNoNone(&phone.DimBacklight, &overlayed.DimBacklight)
-		astoverlay.AstSeconds(&phone.BacklightTimeout, &overlayed.BacklightTimeout)
-		astoverlay.AstInt(&phone.BacklightDimLevel, &overlayed.BacklightDimLevel)
-		astoverlay.String(&phone.ActiveLocale, &overlayed.ActiveLocale)
-		astoverlay.AstInt(&phone.RingerVolume, &overlayed.RingerVolume)
-		astoverlay.AstInt(&phone.SpeakerVolume, &overlayed.SpeakerVolume)
-		astoverlay.AstInt(&phone.HandsetVolume, &overlayed.HandsetVolume)
-		astoverlay.AstInt(&phone.HeadsetVolume, &overlayed.HeadsetVolume)
-		astoverlay.AstYesNoNone(&phone.CallWaitingTone, &overlayed.CallWaitingTone)
-		astoverlay.AstInt(&phone.HandsetSidetoneDB, &overlayed.HandsetSidetoneDB)
-		astoverlay.AstInt(&phone.HeadsetSidetoneDB, &overlayed.HeadsetSidetoneDB)
-		astoverlay.AstYesNoNone(&phone.ResetCallVolume, &overlayed.ResetCallVolume)
-		astoverlay.AstYesNoNone(&phone.HeadsetAnswer, &overlayed.HeadsetAnswer)
-		astoverlay.AstYesNoNone(&phone.RingHeadsetOnly, &overlayed.RingHeadsetOnly)
-		astoverlay.String(&phone.NameFormat, &overlayed.NameFormat)
-		astoverlay.String(&phone.LanPortMode, &overlayed.LanPortMode)
-		astoverlay.String(&phone.PCPortMode, &overlayed.PCPortMode)
-		astoverlay.AstYesNoNone(&phone.EnableCheckSync, &overlayed.EnableCheckSync)
-		// TODO: Add 802.1x parameters
-		astoverlay.StringSlice(&phone.Codecs, &overlayed.Codecs)
-		// TODO: Add OpenVPN parameters
-		astoverlay.AstYesNoNone(&phone.TransportTLSAllowed, &overlayed.TransportTLSAllowed)
+		overlayPhoneScalars(&phones[i], &overlayed)
+		overlayPhoneVectors(&phones[i], &overlayed)
 	}
 	return
+}
+
+// MergePhones returns the merged configuration of all the given phones,
+// in order of priority from least to greatest.
+func MergePhones(phones ...Phone) (merged Phone) {
+	for i := range phones {
+		overlayPhoneScalars(&phones[i], &merged)
+		mergePhoneVectors(&phones[i], &merged)
+	}
+	return
+}
+
+// overlayPhoneScalars overlays all scalar values in from with values from to.
+func overlayPhoneScalars(from, to *Phone) {
+	astoverlay.String(&from.MAC, &to.MAC)
+	astoverlay.String(&from.PIN, &to.PIN)
+	astoverlay.Int(&from.GroupPIN, &to.GroupPIN)
+	astoverlay.String(&from.ExternalLine, &to.ExternalLine)
+	astoverlay.String(&from.ConfigFile, &to.ConfigFile)
+	astoverlay.String(&from.FullName, &to.FullName)
+	astoverlay.String(&from.ContactsDisplayRules, &to.ContactsDisplayRules)
+	astoverlay.String(&from.BLFContactGroup, &to.BLFContactGroup)
+	astoverlay.String(&from.BLFItems, &to.BLFItems)
+	astoverlay.AstSeconds(&from.BLFPageReturnTimeout, &to.BLFPageReturnTimeout)
+	astoverlay.Int(&from.ContactsMaxSubscriptions, &to.ContactsMaxSubscriptions)
+	astoverlay.String(&from.Timezone, &to.Timezone)
+	astoverlay.AstSeconds(&from.NTPResync, &to.NTPResync)
+	astoverlay.Int(&from.ParkingExtension, &to.ParkingExtension)
+	astoverlay.String(&from.ParkingTransferType, &to.ParkingTransferType)
+	astoverlay.AstYesNoNone(&from.ShowCallParking, &to.ShowCallParking)
+	astoverlay.String(&from.ActiveRingtone, &to.ActiveRingtone)
+	astoverlay.AstYesNoNone(&from.WebUIEnabled, &to.WebUIEnabled)
+	astoverlay.AstYesNoNone(&from.RecordOwnCalls, &to.RecordOwnCalls)
+	astoverlay.AstYesNoNone(&from.CanForwardCalls, &to.CanForwardCalls)
+	astoverlay.AstYesNoNone(&from.ShowCallLog, &to.ShowCallLog)
+	astoverlay.AstYesNoNone(&from.LogOutEnabled, &to.LogOutEnabled)
+	astoverlay.AstYesNoNone(&from.BLFUnusedLineKeys, &to.BLFUnusedLineKeys)
+	astoverlay.AstYesNoNone(&from.SendToVoicemail, &to.SendToVoicemail)
+	astoverlay.String(&from.WallpaperFile, &to.WallpaperFile)
+	astoverlay.String(&from.EHS, &to.EHS)
+	astoverlay.AstYesNoNone(&from.LockPreferences, &to.LockPreferences)
+	astoverlay.Int(&from.LoginPassword, &to.LoginPassword)
+	astoverlay.String(&from.AcceptLocalCalls, &to.AcceptLocalCalls)
+	astoverlay.AstYesNoNone(&from.DisplayMCNotification, &to.DisplayMCNotification)
+	astoverlay.String(&from.IdleCompanyText, &to.IdleCompanyText)
+	astoverlay.AstYesNoNone(&from.SmallClock, &to.SmallClock)
+	astoverlay.Int(&from.DefaultFontSize, &to.DefaultFontSize)
+	astoverlay.AstInt(&from.Brightness, &to.Brightness)
+	astoverlay.AstInt(&from.Contrast, &to.Contrast)
+	astoverlay.AstYesNoNone(&from.DimBacklight, &to.DimBacklight)
+	astoverlay.AstSeconds(&from.BacklightTimeout, &to.BacklightTimeout)
+	astoverlay.AstInt(&from.BacklightDimLevel, &to.BacklightDimLevel)
+	astoverlay.String(&from.ActiveLocale, &to.ActiveLocale)
+	astoverlay.AstInt(&from.RingerVolume, &to.RingerVolume)
+	astoverlay.AstInt(&from.SpeakerVolume, &to.SpeakerVolume)
+	astoverlay.AstInt(&from.HandsetVolume, &to.HandsetVolume)
+	astoverlay.AstInt(&from.HeadsetVolume, &to.HeadsetVolume)
+	astoverlay.AstYesNoNone(&from.CallWaitingTone, &to.CallWaitingTone)
+	astoverlay.AstInt(&from.HandsetSidetoneDB, &to.HandsetSidetoneDB)
+	astoverlay.AstInt(&from.HeadsetSidetoneDB, &to.HeadsetSidetoneDB)
+	astoverlay.AstYesNoNone(&from.ResetCallVolume, &to.ResetCallVolume)
+	astoverlay.AstYesNoNone(&from.HeadsetAnswer, &to.HeadsetAnswer)
+	astoverlay.AstYesNoNone(&from.RingHeadsetOnly, &to.RingHeadsetOnly)
+	astoverlay.String(&from.NameFormat, &to.NameFormat)
+	astoverlay.String(&from.LanPortMode, &to.LanPortMode)
+	astoverlay.String(&from.PCPortMode, &to.PCPortMode)
+	astoverlay.AstYesNoNone(&from.EnableCheckSync, &to.EnableCheckSync)
+	// TODO: Add 802.1x parameters
+	// TODO: Add OpenVPN parameters
+	astoverlay.AstYesNoNone(&from.TransportTLSAllowed, &to.TransportTLSAllowed)
+}
+
+// overlayPhoneVectors overlays all vector values in from with values from to.
+func overlayPhoneVectors(from, to *Phone) {
+	astoverlay.StringSlice(&from.Networks, &to.Networks)
+	astoverlay.StringSlice(&from.Firmware, &to.Firmware)
+	astoverlay.StringSlice(&from.Lines, &to.Lines)
+	astoverlay.StringSlice(&from.Applications, &to.Applications)
+	astoverlay.StringSlice(&from.Contacts, &to.Contacts)
+	astoverlay.StringSlice(&from.Ringtones, &to.Ringtones)
+	astoverlay.StringSlice(&from.Alerts, &to.Alerts)
+	astoverlay.StringSlice(&from.MulticastPage, &to.MulticastPage)
+	overlayLogoFileSlice(&from.LogoFiles, &to.LogoFiles)
+	astoverlay.StringSlice(&from.Codecs, &to.Codecs)
+}
+
+// mergePhoneVectors merges all vector values in from with values from to.
+func mergePhoneVectors(from, to *Phone) {
+	astmerge.StringSlice(&from.Networks, &to.Networks)
+	astmerge.StringSlice(&from.Firmware, &to.Firmware)
+	astmerge.StringSlice(&from.Lines, &to.Lines)
+	astmerge.StringSlice(&from.Applications, &to.Applications)
+	astmerge.StringSlice(&from.Contacts, &to.Contacts)
+	astmerge.StringSlice(&from.Ringtones, &to.Ringtones)
+	astmerge.StringSlice(&from.Alerts, &to.Alerts)
+	astmerge.StringSlice(&from.MulticastPage, &to.MulticastPage)
+	overlayLogoFileSlice(&from.LogoFiles, &to.LogoFiles)
+	astmerge.StringSlice(&from.Codecs, &to.Codecs)
 }

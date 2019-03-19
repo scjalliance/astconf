@@ -2,7 +2,7 @@ package sip
 
 import "strings"
 
-// EntityMap is an ordered map of dpman entity entries, indexed by entity username.
+// EntityMap is an ordered map of entities, indexed by entity username.
 //
 // It should not be copied by value.
 //
@@ -93,7 +93,7 @@ func (m *EntityMap) Merge(entity Entity) {
 	}
 }
 
-// Entity returns the entity entry with the given username.
+// Entity returns the entity with the given username.
 func (m *EntityMap) Entity(username string) (entity Entity, ok bool) {
 	if m.lookup == nil {
 		return
@@ -108,7 +108,7 @@ func (m *EntityMap) Entity(username string) (entity Entity, ok bool) {
 	return m.entities[index], true
 }
 
-// Entities returns a slice of all entity entries in the map.
+// Entities returns a slice of all entities in the map.
 func (m *EntityMap) Entities() []Entity {
 	return m.entities
 }

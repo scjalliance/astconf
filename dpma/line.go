@@ -33,29 +33,29 @@ func (line *Line) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 	return e.Printer().Setting("type", "line")
 }
 
-// MergeLines returns the merged configuration of all the given lines,
+// OverlayLines returns the overlayed configuration of all the given lines,
 // in order of priority from least to greatest.
-func MergeLines(lines ...Line) (merged Line) {
+func OverlayLines(lines ...Line) (overlayed Line) {
 	for i := range lines {
 		line := &lines[i]
-		astoverlay.SectionName(&line.Name, &merged.Name)
-		astoverlay.String(&line.Extension, &merged.Extension)
-		astoverlay.String(&line.DigitMap, &merged.DigitMap)
-		astoverlay.String(&line.Label, &merged.Label)
-		astoverlay.String(&line.Mailbox, &merged.Mailbox)
-		astoverlay.String(&line.VoicemailURI, &merged.VoicemailURI)
-		astoverlay.String(&line.OutboundProxyAddress, &merged.OutboundProxyAddress)
-		astoverlay.String(&line.OutboundProxyPort, &merged.OutboundProxyPort)
-		astoverlay.String(&line.Transport, &merged.Transport)
-		astoverlay.String(&line.MediaEncryption, &merged.MediaEncryption)
-		astoverlay.AstSeconds(&line.RegistrationTimeout, &merged.RegistrationTimeout)
-		astoverlay.AstSeconds(&line.RegistrationRetryInterval, &merged.RegistrationRetryInterval)
-		astoverlay.AstInt(&line.RegistrationMaxRetries, &merged.RegistrationMaxRetries)
-		astoverlay.String(&line.Secret, &merged.Secret)
-		astoverlay.String(&line.Context, &merged.Context)
-		astoverlay.String(&line.CallerID, &merged.CallerID)
-		astoverlay.String(&line.SubscribeContext, &merged.SubscribeContext)
-		astoverlay.String(&line.PlarNumber, &merged.PlarNumber)
+		astoverlay.SectionName(&line.Name, &overlayed.Name)
+		astoverlay.String(&line.Extension, &overlayed.Extension)
+		astoverlay.String(&line.DigitMap, &overlayed.DigitMap)
+		astoverlay.String(&line.Label, &overlayed.Label)
+		astoverlay.String(&line.Mailbox, &overlayed.Mailbox)
+		astoverlay.String(&line.VoicemailURI, &overlayed.VoicemailURI)
+		astoverlay.String(&line.OutboundProxyAddress, &overlayed.OutboundProxyAddress)
+		astoverlay.String(&line.OutboundProxyPort, &overlayed.OutboundProxyPort)
+		astoverlay.String(&line.Transport, &overlayed.Transport)
+		astoverlay.String(&line.MediaEncryption, &overlayed.MediaEncryption)
+		astoverlay.AstSeconds(&line.RegistrationTimeout, &overlayed.RegistrationTimeout)
+		astoverlay.AstSeconds(&line.RegistrationRetryInterval, &overlayed.RegistrationRetryInterval)
+		astoverlay.AstInt(&line.RegistrationMaxRetries, &overlayed.RegistrationMaxRetries)
+		astoverlay.String(&line.Secret, &overlayed.Secret)
+		astoverlay.String(&line.Context, &overlayed.Context)
+		astoverlay.String(&line.CallerID, &overlayed.CallerID)
+		astoverlay.String(&line.SubscribeContext, &overlayed.SubscribeContext)
+		astoverlay.String(&line.PlarNumber, &overlayed.PlarNumber)
 	}
 	return
 }

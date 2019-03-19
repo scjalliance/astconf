@@ -1,6 +1,6 @@
 package dpma
 
-func mergeLogoFileSlice(from, to *[]LogoFile) {
+func overlayLogoFileSlice(from, to *[]LogoFile) {
 	if *from != nil {
 		*to = *from
 	}

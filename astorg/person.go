@@ -1,5 +1,7 @@
 package astorg
 
+import "github.com/scjalliance/astconf/astorg/astorgvm"
+
 // Person represents a person in an organization.
 type Person struct {
 	//Server             string // Identifies which server manages presence
@@ -18,6 +20,7 @@ type Person struct {
 	CalendarURL        string
 	VoicemailExtension string
 	VoicemailCode      string
+	VoicemailAccess    astorgvm.Access
 	Ringtones          []string
 	Apps               []string
 	PagingGroups       []string
@@ -80,6 +83,9 @@ func (p *Person) Equal(q *Person) bool {
 		return false
 	}
 	if p.VoicemailCode != q.VoicemailCode {
+		return false
+	}
+	if p.VoicemailAccess != q.VoicemailAccess {
 		return false
 	}
 

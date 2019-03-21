@@ -18,6 +18,7 @@ var (
 	templateEnd      = []byte(")")
 	includeStart     = []byte("#include ")
 	comma            = []byte(",")
+	commentStart     = []byte("; ")
 	settingSeparator = []byte(" = ")
 	objectSeparator  = []byte(" => ")
 	newline          = []byte("\n")
@@ -36,7 +37,7 @@ type Printer struct {
 	io.Writer
 	Indent    int
 	Alignment Alignment
-	Started   bool // If true a newline will be printed before each value
+	Started   bool // If true a newline will be printed before each section
 }
 
 // NewPrinter returns a new printer that writes to w.
@@ -48,6 +49,22 @@ func NewPrinter(w io.Writer) *Printer {
 
 //func (p *Printer) Template(name string, templates ...string) error {
 //}
+
+// Comment writes a single line comment to p.Writer.
+func (p *Printer) Comment(comment string) error {
+	wg := writegroup{Writer: p.Writer}
+	wg.Write(commentStart)
+	wg.Write([]byte(comment))
+	wg.Write(newline)
+	return wg.Err()
+}
+
+// Break causes the printer to insert a newline if the printer has started.
+func (p *Printer) Break() {
+	if p.Started {
+		p.Writer.Write(newline)
+	}
+}
 
 // Start begins a new field by writing its name and optional
 // separator.
@@ -121,7 +138,7 @@ func (p *Printer) section(section []byte) error {
 }
 */
 
-// Setting will write a setting to w.
+// Setting will write a setting to p.Writer.
 //
 // An InvalidContentError will be returned if the setting or its value
 // contain an invalid character.

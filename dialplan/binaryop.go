@@ -1,0 +1,55 @@
+package dialplan
+
+// BinaryOp is a binary operation on two expressions.
+type BinaryOp struct {
+	E1       Expression
+	E2       Expression
+	Operator string
+}
+
+// Expr returns the binary operation as an expression.
+func (op BinaryOp) Expr() ExprDef {
+	e1 := op.E1.Expr().String()
+	e2 := op.E2.Expr().String()
+	return ExprDef{Content: e1 + op.Operator + e2, Kind: Op}
+}
+
+// Or returns a logical or operation.
+func Or(e1 Expression, e2 Expression) BinaryOp {
+	return BinaryOp{E1: e1, E2: e2, Operator: "|"}
+}
+
+// And returns a logical and operation.
+func And(e1 Expression, e2 Expression) BinaryOp {
+	return BinaryOp{E1: e1, E2: e2, Operator: "&"}
+}
+
+// Equal returns an equality operation.
+func Equal(e1 Expression, e2 Expression) BinaryOp {
+	return BinaryOp{E1: e1, E2: e2, Operator: "="}
+}
+
+// GreaterThan returns a greater-than operation.
+func GreaterThan(e1 Expression, e2 Expression) BinaryOp {
+	return BinaryOp{E1: e1, E2: e2, Operator: ">"}
+}
+
+// GreaterThanOrEqual returns a greater-than-or-equal operation.
+func GreaterThanOrEqual(e1 Expression, e2 Expression) BinaryOp {
+	return BinaryOp{E1: e1, E2: e2, Operator: ">="}
+}
+
+// LessThan returns a less-than operation.
+func LessThan(e1 Expression, e2 Expression) BinaryOp {
+	return BinaryOp{E1: e1, E2: e2, Operator: "<"}
+}
+
+// LessThanOrEqual returns a less-than-or-equal operation.
+func LessThanOrEqual(e1 Expression, e2 Expression) BinaryOp {
+	return BinaryOp{E1: e1, E2: e2, Operator: "<="}
+}
+
+// NotEqual returns an inequality operation.
+func NotEqual(e1 Expression, e2 Expression) BinaryOp {
+	return BinaryOp{E1: e1, E2: e2, Operator: "!="}
+}

@@ -23,15 +23,30 @@ func (d *DataSet) Size() int {
 // Lookup returns a lookup constructed from the data set.
 func (d *DataSet) Lookup() Lookup {
 	lookup := Lookup{
-		LocationByName: make(map[string]Location),
-		PersonByEmail:  make(map[string]Person),
-		PersonByNumber: make(map[string]Person),
-		RoleByUsername: make(map[string]PhoneRole),
-		RoleByNumber:   make(map[string]PhoneRole),
+		LocationByName:   make(map[string]Location),
+		PersonByEmail:    make(map[string]Person),
+		PersonByNumber:   make(map[string]Person),
+		RoleByUsername:   make(map[string]PhoneRole),
+		RoleByNumber:     make(map[string]PhoneRole),
+		PhoneAssignments: make(map[string]Assignment),
 	}
 	for _, location := range d.Locations {
 		if location.Name != "" {
 			lookup.LocationByName[location.Name] = location
+		}
+	}
+	for _, phone := range d.Phones {
+		lookup.PhoneAssignments[phone.MAC] = Assignment{Type: Unassigned, Username: phone.MAC}
+	}
+	for _, role := range d.PhoneRoles {
+		if role.Username != "" {
+			lookup.RoleByUsername[role.Username] = role
+		}
+		if role.Extension != "" {
+			lookup.RoleByNumber[role.Extension] = role
+		}
+		for _, mac := range role.Phones {
+			lookup.PhoneAssignments[mac] = Assignment{Type: RoleAssigned, Username: role.Username}
 		}
 	}
 	for _, person := range d.People {
@@ -41,13 +56,8 @@ func (d *DataSet) Lookup() Lookup {
 		if person.Extension != "" {
 			lookup.PersonByNumber[person.Extension] = person
 		}
-	}
-	for _, role := range d.PhoneRoles {
-		if role.Username != "" {
-			lookup.RoleByUsername[role.Username] = role
-		}
-		if role.Extension != "" {
-			lookup.RoleByNumber[role.Extension] = role
+		for _, mac := range person.Phones {
+			lookup.PhoneAssignments[mac] = Assignment{Type: PersonAssigned, Username: person.Username}
 		}
 	}
 	return lookup

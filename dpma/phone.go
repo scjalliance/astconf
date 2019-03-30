@@ -13,6 +13,7 @@ import (
 
 // Phone is a DPMA phone definition.
 type Phone struct {
+	Username                 string           `astconf:"-"`
 	Networks                 []string         `astconf:"network"`
 	Firmware                 []string         `astconf:"firmware"`
 	MAC                      string           `astconf:"mac,omitempty"`
@@ -87,7 +88,9 @@ type Phone struct {
 
 // SectionName returns the name of the phone section.
 func (p *Phone) SectionName() string {
-	// FIXME: Generate an alternate name if the phone doesn't have a MAC
+	if p.Username != "" {
+		return p.Username
+	}
 	return strings.ToLower(strings.Replace(p.MAC, ":", "", -1))
 }
 
@@ -118,6 +121,7 @@ func MergePhones(phones ...Phone) (merged Phone) {
 
 // overlayPhoneScalars overlays all scalar values in from with values from to.
 func overlayPhoneScalars(from, to *Phone) {
+	astoverlay.String(&from.Username, &to.Username)
 	astoverlay.String(&from.MAC, &to.MAC)
 	astoverlay.String(&from.PIN, &to.PIN)
 	astoverlay.Int(&from.GroupPIN, &to.GroupPIN)

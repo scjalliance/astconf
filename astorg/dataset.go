@@ -36,6 +36,9 @@ func (d *DataSet) Lookup() Lookup {
 		}
 	}
 	for _, phone := range d.Phones {
+		if _, found := lookup.PhoneAssignments[phone.MAC]; found {
+			continue
+		}
 		lookup.PhoneAssignments[phone.MAC] = Assignment{Type: Unassigned, Username: phone.MAC}
 	}
 	for _, role := range d.PhoneRoles {
@@ -46,6 +49,9 @@ func (d *DataSet) Lookup() Lookup {
 			lookup.RoleByNumber[role.Extension] = role
 		}
 		for _, mac := range role.Phones {
+			if assignment := lookup.PhoneAssignments[mac]; assignment.Type != Unassigned {
+				continue
+			}
 			lookup.PhoneAssignments[mac] = Assignment{Type: RoleAssigned, Username: role.Username}
 		}
 	}
@@ -57,6 +63,9 @@ func (d *DataSet) Lookup() Lookup {
 			lookup.PersonByNumber[person.Extension] = person
 		}
 		for _, mac := range person.Phones {
+			if assignment := lookup.PhoneAssignments[mac]; assignment.Type != Unassigned {
+				continue
+			}
 			lookup.PhoneAssignments[mac] = Assignment{Type: PersonAssigned, Username: person.Username}
 		}
 	}

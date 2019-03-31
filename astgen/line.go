@@ -30,12 +30,12 @@ func Lines(data *astorg.DataSet) []dpma.Line {
 		m.Add(line)
 	}
 
-	// Step 2: Add person configuration
+	// Step 2: Overlay person configuration
 	finished := make(map[string]bool) // Keep track of which phones are fully configured
 
 	for _, person := range data.People {
 		for _, mac := range person.Phones {
-			if finished[mac] {
+			if !m.Contains(mac) || finished[mac] {
 				continue
 			}
 			username := phoneUsername(mac, lookup)
@@ -48,10 +48,10 @@ func Lines(data *astorg.DataSet) []dpma.Line {
 		}
 	}
 
-	// Step 3: Add phone role configuration
+	// Step 3: Overlay phone role configuration
 	for _, role := range data.PhoneRoles {
 		for _, mac := range role.Phones {
-			if finished[mac] {
+			if !m.Contains(mac) || finished[mac] {
 				continue
 			}
 			username := phoneUsername(mac, lookup)

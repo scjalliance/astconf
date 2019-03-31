@@ -43,15 +43,15 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 		m.Add(dpma.OverlayPhones(base, entry))
 	}
 
-	// Step 2: Add person configuration
+	// Step 2: Merge person configuration
 	finished := make(map[string]bool) // Keep track of which phones are fully configured
 
 	for _, person := range data.People {
 		for _, mac := range person.Phones {
-			username := phoneUsername(mac, lookup)
-			if finished[mac] {
+			if !m.Contains(mac) || finished[mac] {
 				continue
 			}
+			username := phoneUsername(mac, lookup)
 			entry := dpma.Phone{
 				Username:  username,
 				MAC:       mac,
@@ -69,19 +69,15 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 			if person.Firmware != "" {
 				entry.Firmware = []string{person.Firmware}
 			}
-			if !m.Contains(mac) {
-				m.Add(dpma.OverlayPhones(base, entry))
-			} else {
-				m.Merge(entry)
-			}
+			m.Merge(entry)
 			finished[mac] = true
 		}
 	}
 
-	// Step 3: Add phone role configuration
+	// Step 3: Merge phone role configuration
 	for _, role := range data.PhoneRoles {
 		for _, mac := range role.Phones {
-			if finished[mac] {
+			if !m.Contains(mac) || finished[mac] {
 				continue
 			}
 			username := phoneUsername(mac, lookup)
@@ -98,11 +94,7 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				}
 				entry.BLFItems = buildURL(contactsURL, fmt.Sprintf("%s.blf.xml", role.Username))
 			}
-			if !m.Contains(mac) {
-				m.Add(dpma.OverlayPhones(base, entry))
-			} else {
-				m.Merge(entry)
-			}
+			m.Merge(entry)
 			finished[mac] = true
 		}
 	}

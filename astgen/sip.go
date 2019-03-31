@@ -30,11 +30,10 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				fmt.Sprintf("USER_LOCATION=%s", phone.Location),
 			}
 		}
-
 		m.Add(sip.MergeEntities(base, entity))
 	}
 
-	// Step 2: Add person configuration
+	// Step 2: Merge person configuration
 	finished := make(map[string]bool) // Keep track of which phones are fully configured
 
 	for _, person := range data.People {
@@ -51,15 +50,12 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				break
 			}
 		}
-
 		for _, mac := range person.Phones {
-			if finished[mac] {
+			if !m.Contains(mac) || finished[mac] {
 				continue
 			}
-
 			//vars := vars // New variable
 			//vars = append(vars, fmt.Sprintf("USERNAME=%s", person.Username))
-
 			username := phoneUsername(mac, lookup)
 			entity := sip.Entity{
 				Username:  username,
@@ -67,33 +63,22 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				Mailbox:   fmt.Sprintf("%s@%s", person.Extension, context),
 				Variables: vars,
 			}
-
-			if !m.Contains(mac) {
-				m.Add(sip.MergeEntities(base, entity))
-			} else {
-				m.Merge(entity)
-			}
+			m.Merge(entity)
 			finished[mac] = true
 		}
 	}
 
-	// Step 3: Add phone role configuration
+	// Step 3: Merge phone role configuration
 	for _, role := range data.PhoneRoles {
 		for _, mac := range role.Phones {
-			if finished[mac] {
+			if !m.Contains(mac) || finished[mac] {
 				continue
 			}
-
 			username := phoneUsername(mac, lookup)
 			entity := sip.Entity{
 				Username: username,
 			}
-
-			if !m.Contains(mac) {
-				m.Add(sip.MergeEntities(base, entity))
-			} else {
-				m.Merge(entity)
-			}
+			m.Merge(entity)
 			finished[mac] = true
 		}
 	}

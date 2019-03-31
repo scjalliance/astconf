@@ -25,6 +25,10 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 		var vars []astval.Var
 		if phone.Location != "" {
 			vars = append(vars, astval.NewVar("USER_LOCATION", phone.Location))
+			if loc, ok := lookup.LocationByName[phone.Location]; ok {
+				vars = append(vars, astval.NewVar("OUTBOUND_CALLERID", loc.CallerID))
+				vars = append(vars, astval.NewVar("AREACODE", loc.AreaCode))
+			}
 		}
 		entity := sip.Entity{
 			Username:  username,

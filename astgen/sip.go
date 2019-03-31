@@ -23,16 +23,21 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 	for _, phone := range data.Phones {
 		username := phoneUsername(phone.MAC, lookup)
 		var vars []astval.Var
+		var callerID string
 		if phone.Location != "" {
 			vars = append(vars, astval.NewVar("USER_LOCATION", phone.Location))
 			if loc, ok := lookup.LocationByName[phone.Location]; ok {
 				vars = append(vars, astval.NewVar("OUTBOUND_CALLERID", loc.CallerID))
 				vars = append(vars, astval.NewVar("AREACODE", loc.AreaCode))
+				if loc.Abbreviation != "" {
+					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", loc.Abbreviation, strings.ToUpper(phone.MAC))
+				}
 			}
 		}
 		entity := sip.Entity{
 			Username:  username,
 			Secret:    phone.Secret,
+			CallerID:  callerID,
 			Variables: vars,
 		}
 		m.Add(sip.MergeEntities(base, entity))

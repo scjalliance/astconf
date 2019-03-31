@@ -10,6 +10,12 @@ import (
 )
 
 // Phones generates DPMA phone entries for a dataset.
+//
+// The values in the base configuration will be merged into each entry
+// that is returned.
+//
+// The contactsURL, if non-empty, will be used to prefix the contacts URL
+// and BLF Items URL for each entry.
 func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Phone {
 	lookup := data.Lookup()
 

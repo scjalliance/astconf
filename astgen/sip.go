@@ -9,7 +9,10 @@ import (
 )
 
 // SIP generates SIP entries for a dataset.
-func SIP(data *astorg.DataSet, context string, base sip.Entity) []sip.Entity {
+//
+// The values in the base configuration will be merged into each entity
+// that is returned.
+func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 	lookup := data.Lookup()
 
 	// Progressively add entities to an ordered map

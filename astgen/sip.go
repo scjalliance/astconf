@@ -50,10 +50,10 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 		}
 		vars = append(vars, astval.NewVar("USERNAME", person.Username))
 		for _, mac := range person.Phones {
-			if !m.Contains(mac) || finished[mac] {
+			username := phoneUsername(mac, lookup)
+			if !m.Contains(username) || finished[mac] {
 				continue
 			}
-			username := phoneUsername(mac, lookup)
 			entity := sip.Entity{
 				Username:  username,
 				CallerID:  fmt.Sprintf("\"%s\" <%s>", person.FullName, person.Extension),
@@ -68,10 +68,10 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 	// Step 3: Merge phone role configuration
 	for _, role := range data.PhoneRoles {
 		for _, mac := range role.Phones {
-			if !m.Contains(mac) || finished[mac] {
+			username := phoneUsername(mac, lookup)
+			if !m.Contains(username) || finished[mac] {
 				continue
 			}
-			username := phoneUsername(mac, lookup)
 			entity := sip.Entity{
 				Username: username,
 			}

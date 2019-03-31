@@ -48,10 +48,10 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 
 	for _, person := range data.People {
 		for _, mac := range person.Phones {
-			if !m.Contains(mac) || finished[mac] {
+			username := phoneUsername(mac, lookup)
+			if !m.Contains(username) || finished[mac] {
 				continue
 			}
-			username := phoneUsername(mac, lookup)
 			entry := dpma.Phone{
 				Username:  username,
 				MAC:       mac,
@@ -77,10 +77,10 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 	// Step 3: Merge phone role configuration
 	for _, role := range data.PhoneRoles {
 		for _, mac := range role.Phones {
-			if !m.Contains(mac) || finished[mac] {
+			username := phoneUsername(mac, lookup)
+			if !m.Contains(username) || finished[mac] {
 				continue
 			}
-			username := phoneUsername(mac, lookup)
 			entry := dpma.Phone{
 				Username: username,
 				MAC:      mac,

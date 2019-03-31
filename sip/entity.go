@@ -13,6 +13,7 @@ import (
 //
 // TODO: Add the rest of the possible fields.
 type Entity struct {
+	Username           string           `astconf:"-"`
 	Type               Type             `astconf:"type"`
 	AccountCode        string           `astconf:"accountcode,omitempty"`
 	Disallow           []string         `astconf:"disallow,omitempty"`
@@ -32,7 +33,6 @@ type Entity struct {
 	Mailbox            string           `astconf:"mailbox,omitempty"`
 	Secret             string           `astconf:"secret,omitempty"`
 	Variables          []astval.Var     `astconf:"setvar,omitempty"`
-	Username           string           `astconf:"username"`
 }
 
 // SectionName returns the name of the section that the entity belongs to.

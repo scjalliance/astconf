@@ -13,7 +13,7 @@ const (
 // YesNo is a boolean value that will be marshaled as "yes" or "no".
 type YesNo bool
 
-// String returns the booelan as the string "yes" or "no".
+// String returns the boolean as the string "yes" or "no".
 func (b YesNo) String() string {
 	if b {
 		return yes

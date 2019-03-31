@@ -83,6 +83,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 			}
 			entity := sip.Entity{
 				Username: username,
+				CallerID: fmt.Sprintf("\"%s\" <%s>", role.DisplayName, role.Extension),
 			}
 			m.Merge(entity)
 			finished[mac] = true

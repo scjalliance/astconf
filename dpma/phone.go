@@ -46,6 +46,7 @@ type Phone struct {
 	MulticastPage            []string         `astconf:"multicastpage"`
 	BLFUnusedLineKeys        astval.YesNoNone `astconf:"blf_unused_linekeys"`
 	SendToVoicemail          astval.YesNoNone `astconf:"send_to_vm"`
+	UseLocalStorage          astval.YesNoNone `astconf:"use_local_storage"`
 	LogoFiles                []LogoFile
 	WallpaperFile            string           `astconf:"wallpaper_file,omitempty"`
 	EHS                      string           `astconf:"ehs,omitempty"` // "auto", "plantronics", "jabra_iq"
@@ -146,6 +147,7 @@ func overlayPhoneScalars(from, to *Phone) {
 	astoverlay.AstYesNoNone(&from.LogOutEnabled, &to.LogOutEnabled)
 	astoverlay.AstYesNoNone(&from.BLFUnusedLineKeys, &to.BLFUnusedLineKeys)
 	astoverlay.AstYesNoNone(&from.SendToVoicemail, &to.SendToVoicemail)
+	astoverlay.AstYesNoNone(&from.UseLocalStorage, &to.UseLocalStorage)
 	astoverlay.String(&from.WallpaperFile, &to.WallpaperFile)
 	astoverlay.String(&from.EHS, &to.EHS)
 	astoverlay.AstYesNoNone(&from.LockPreferences, &to.LockPreferences)

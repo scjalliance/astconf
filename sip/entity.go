@@ -31,7 +31,7 @@ type Entity struct {
 	Host               string           `astconf:"host,omitempty"`
 	Mailbox            string           `astconf:"mailbox,omitempty"`
 	Secret             string           `astconf:"secret,omitempty"`
-	Variables          []string         `astconf:"setvar,omitempty"`
+	Variables          []astval.Var     `astconf:"setvar,omitempty"`
 	Username           string           `astconf:"username"`
 }
 
@@ -85,12 +85,12 @@ func overlayEntityScalars(from, to *Entity) {
 func overlayEntityVectors(from, to *Entity) {
 	astoverlay.StringSlice(&from.Disallow, &to.Disallow)
 	astoverlay.StringSlice(&from.Allow, &to.Allow)
-	astoverlay.StringSlice(&from.Variables, &to.Variables)
+	astoverlay.AstVarSlice(&from.Variables, &to.Variables)
 }
 
 // mergeEntityVectors merges all vector values in from with values from to.
 func mergeEntityVectors(from, to *Entity) {
 	astmerge.StringSlice(&from.Disallow, &to.Disallow)
 	astmerge.StringSlice(&from.Allow, &to.Allow)
-	astmerge.StringSlice(&from.Variables, &to.Variables)
+	astmerge.AstVarSlice(&from.Variables, &to.Variables)
 }

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/scjalliance/astconf/astorg"
+	"github.com/scjalliance/astconf/astval"
 	"github.com/scjalliance/astconf/sip"
 )
 
@@ -21,14 +22,14 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 	// Step 1: Add all phones
 	for _, phone := range data.Phones {
 		username := phoneUsername(phone.MAC, lookup)
-		entity := sip.Entity{
-			Username: username,
-			Secret:   phone.Secret,
-		}
+		var vars []astval.Var
 		if phone.Location != "" {
-			entity.Variables = []string{
-				fmt.Sprintf("USER_LOCATION=%s", phone.Location),
-			}
+			vars = append(vars, astval.NewVar("USER_LOCATION", phone.Location))
+		}
+		entity := sip.Entity{
+			Username:  username,
+			Secret:    phone.Secret,
+			Variables: vars,
 		}
 		m.Add(sip.MergeEntities(base, entity))
 	}
@@ -37,25 +38,21 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 	finished := make(map[string]bool) // Keep track of which phones are fully configured
 
 	for _, person := range data.People {
-		var vars []string
-		if person.Location != "" {
-			//vars = append(vars, fmt.Sprintf("USER_LOCATION=%s", person.Location))
-		}
+		var vars []astval.Var
 		if person.VoicemailCode != "" {
-			vars = append(vars, fmt.Sprintf("VMCODE=%s", person.VoicemailCode))
+			vars = append(vars, astval.NewVar("VMCODE", person.VoicemailCode))
 		}
 		for _, number := range person.ContactNumbers {
 			if strings.Contains(strings.ToLower(number.Label), "mobile") {
-				vars = append(vars, fmt.Sprintf("MOBILE=%s", number.Dial))
+				vars = append(vars, astval.NewVar("MOBILE", number.Dial))
 				break
 			}
 		}
+		vars = append(vars, astval.NewVar("USERNAME", person.Username))
 		for _, mac := range person.Phones {
 			if !m.Contains(mac) || finished[mac] {
 				continue
 			}
-			//vars := vars // New variable
-			//vars = append(vars, fmt.Sprintf("USERNAME=%s", person.Username))
 			username := phoneUsername(mac, lookup)
 			entity := sip.Entity{
 				Username:  username,

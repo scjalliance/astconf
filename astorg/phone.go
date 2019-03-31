@@ -4,4 +4,5 @@ package astorg
 type Phone struct {
 	MAC      string
 	Location string
+	Secret   string
 }

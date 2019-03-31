@@ -23,6 +23,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 		username := phoneUsername(phone.MAC, lookup)
 		entity := sip.Entity{
 			Username: username,
+			Secret:   phone.Secret,
 		}
 		if phone.Location != "" {
 			entity.Variables = []string{

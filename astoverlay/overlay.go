@@ -87,3 +87,10 @@ func AstSeconds(from, to *astval.Seconds) {
 		*to = *from
 	}
 }
+
+// AstVarSlice overlays two asterisk variable value slices.
+func AstVarSlice(from, to *[]astval.Var) {
+	if *from != nil {
+		*to = *from
+	}
+}

@@ -8,6 +8,8 @@ type DataSet struct {
 	People     []Person
 	PhoneRoles []PhoneRole
 	Phones     []Phone
+	Alerts     []Alert
+	Ringtones  []Ringtone
 }
 
 // Size returns the total number of records in the data set.
@@ -17,6 +19,8 @@ func (d *DataSet) Size() int {
 	length += len(d.People)
 	length += len(d.PhoneRoles)
 	length += len(d.Phones)
+	length += len(d.Alerts)
+	length += len(d.Ringtones)
 	return length
 }
 
@@ -29,6 +33,8 @@ func (d *DataSet) Lookup() Lookup {
 		RoleByUsername:   make(map[string]PhoneRole),
 		RoleByNumber:     make(map[string]PhoneRole),
 		PhoneAssignments: make(map[string]Assignment),
+		AlertsByName:     make(map[string]Alert),
+		RingtonesByNAme:  make(map[string]Ringtone),
 	}
 	for _, location := range d.Locations {
 		if location.Name != "" {
@@ -69,6 +75,16 @@ func (d *DataSet) Lookup() Lookup {
 			lookup.PhoneAssignments[mac] = Assignment{Type: PersonAssigned, Username: person.Username}
 		}
 	}
+	for _, alert := range d.Alerts {
+		if alert.Name != "" {
+			lookup.AlertsByName[alert.Name] = alert
+		}
+	}
+	for _, ringtone := range d.Ringtones {
+		if ringtone.Name != "" {
+			lookup.RingtonesByNAme[ringtone.Name] = ringtone
+		}
+	}
 	return lookup
 }
 
@@ -85,6 +101,12 @@ func (d *DataSet) Equal(e *DataSet) bool {
 		return false
 	}
 	if len(d.Phones) != len(e.Phones) {
+		return false
+	}
+	if len(d.Alerts) != len(e.Alerts) {
+		return false
+	}
+	if len(d.Ringtones) != len(e.Ringtones) {
 		return false
 	}
 
@@ -106,6 +128,16 @@ func (d *DataSet) Equal(e *DataSet) bool {
 	}
 	for i := range d.Phones {
 		if d.Phones[i] != e.Phones[i] {
+			return false
+		}
+	}
+	for i := range d.Alerts {
+		if d.Alerts[i] != e.Alerts[i] {
+			return false
+		}
+	}
+	for i := range d.Ringtones {
+		if d.Ringtones[i] != e.Ringtones[i] {
 			return false
 		}
 	}

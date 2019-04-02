@@ -8,4 +8,6 @@ type Lookup struct {
 	RoleByUsername   map[string]PhoneRole  // Maps usernames to phone roles
 	RoleByNumber     map[string]PhoneRole  // Maps phone numbers to phone roles
 	PhoneAssignments map[string]Assignment // Maps phone mac addresses to their highest priority assignments
+	AlertsByName     map[string]Alert      // Maps alert names to alerts
+	RingtonesByNAme  map[string]Ringtone   // Maps ringtone names to ringtones
 }

@@ -21,6 +21,7 @@ type Person struct {
 	VoicemailExtension string
 	VoicemailCode      string
 	VoicemailAccess    astorgvm.Access
+	Alerts             []string
 	Ringtones          []string
 	Apps               []string
 	PagingGroups       []string
@@ -90,6 +91,9 @@ func (p *Person) Equal(q *Person) bool {
 	}
 
 	// Compare slices
+	if !equalStrings(p.Alerts, q.Alerts) {
+		return false
+	}
 	if !equalStrings(p.Ringtones, q.Ringtones) {
 		return false
 	}

@@ -199,7 +199,7 @@ func overlayPhoneVectors(from, to *Phone) {
 // mergePhoneVectors merges all vector values in from with values from to.
 func mergePhoneVectors(from, to *Phone) {
 	astmerge.StringSlice(&from.Networks, &to.Networks)
-	astmerge.StringSlice(&from.Firmware, &to.Firmware)
+	astoverlay.StringSlice(&from.Firmware, &to.Firmware)
 	astmerge.StringSlice(&from.Lines, &to.Lines)
 	astmerge.StringSlice(&from.Applications, &to.Applications)
 	astmerge.StringSlice(&from.Contacts, &to.Contacts)

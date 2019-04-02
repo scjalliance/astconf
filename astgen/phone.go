@@ -37,8 +37,10 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 			Username: username,
 			MAC:      phone.MAC,
 			FullName: fullName,
-			Lines:    []string{username},
 			Timezone: tz,
+		}
+		if line := lineUsername(phone.MAC, lookup); line != "" {
+			entry.Lines = []string{line}
 		}
 		m.Add(dpma.OverlayPhones(base, entry))
 	}
@@ -57,7 +59,9 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				MAC:       mac,
 				FullName:  person.FullName,
 				Ringtones: person.Ringtones,
-				Lines:     []string{username},
+			}
+			if line := lineUsername(mac, lookup); line != "" {
+				entry.Lines = []string{line}
 			}
 			if person.Username != "" {
 				entry.Contacts = []string{
@@ -85,7 +89,9 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				Username: username,
 				MAC:      mac,
 				FullName: role.DisplayName,
-				Lines:    []string{username},
+			}
+			if line := lineUsername(mac, lookup); line != "" {
+				entry.Lines = []string{line}
 			}
 			if role.Username != "" {
 				entry.Contacts = []string{

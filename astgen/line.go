@@ -16,7 +16,7 @@ func Lines(data *astorg.DataSet) []dpma.Line {
 
 	// Step 1: Add all phones
 	for _, phone := range data.Phones {
-		username := phoneUsername(phone.MAC, lookup)
+		username := lineUsername(phone.MAC, lookup)
 		label := phone.MAC
 		if loc, ok := lookup.LocationByName[phone.Location]; ok {
 			if loc.Abbreviation != "" {
@@ -35,7 +35,7 @@ func Lines(data *astorg.DataSet) []dpma.Line {
 
 	for _, person := range data.People {
 		for _, mac := range person.Phones {
-			username := phoneUsername(mac, lookup)
+			username := lineUsername(mac, lookup)
 			if !m.Contains(username) || finished[mac] {
 				continue
 			}
@@ -51,7 +51,7 @@ func Lines(data *astorg.DataSet) []dpma.Line {
 	// Step 3: Overlay phone role configuration
 	for _, role := range data.PhoneRoles {
 		for _, mac := range role.Phones {
-			username := phoneUsername(mac, lookup)
+			username := lineUsername(mac, lookup)
 			if !m.Contains(username) || finished[mac] {
 				continue
 			}

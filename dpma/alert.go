@@ -17,5 +17,5 @@ func (a *Alert) SectionName() string {
 
 // MarshalAsteriskPreamble marshals the type.
 func (*Alert) MarshalAsteriskPreamble(e *astconf.Encoder) error {
-	return e.Printer().Setting("type", "ringtone")
+	return e.Printer().Setting("type", "alert")
 }

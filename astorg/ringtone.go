@@ -4,4 +4,5 @@ package astorg
 type Ringtone struct {
 	Name        string
 	DisplayName string
+	Filename    string
 }

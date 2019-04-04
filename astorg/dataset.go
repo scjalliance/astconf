@@ -4,12 +4,13 @@ import "strings"
 
 // DataSet represents a complete dataset for an organization.
 type DataSet struct {
-	Locations  []Location
-	People     []Person
-	PhoneRoles []PhoneRole
-	Phones     []Phone
-	Alerts     []Alert
-	Ringtones  []Ringtone
+	Locations    []Location
+	People       []Person
+	PhoneRoles   []PhoneRole
+	Phones       []Phone
+	PagingGroups []PagingGroup
+	Alerts       []Alert
+	Ringtones    []Ringtone
 }
 
 // Size returns the total number of records in the data set.
@@ -19,6 +20,7 @@ func (d *DataSet) Size() int {
 	length += len(d.People)
 	length += len(d.PhoneRoles)
 	length += len(d.Phones)
+	length += len(d.PagingGroups)
 	length += len(d.Alerts)
 	length += len(d.Ringtones)
 	return length
@@ -27,14 +29,15 @@ func (d *DataSet) Size() int {
 // Lookup returns a lookup constructed from the data set.
 func (d *DataSet) Lookup() Lookup {
 	lookup := Lookup{
-		LocationByName:   make(map[string]Location),
-		PersonByEmail:    make(map[string]Person),
-		PersonByNumber:   make(map[string]Person),
-		RoleByUsername:   make(map[string]PhoneRole),
-		RoleByNumber:     make(map[string]PhoneRole),
-		PhoneAssignments: make(map[string]Assignment),
-		AlertsByName:     make(map[string]Alert),
-		RingtonesByNAme:  make(map[string]Ringtone),
+		LocationByName:    make(map[string]Location),
+		PersonByEmail:     make(map[string]Person),
+		PersonByNumber:    make(map[string]Person),
+		RoleByUsername:    make(map[string]PhoneRole),
+		RoleByNumber:      make(map[string]PhoneRole),
+		PhoneAssignments:  make(map[string]Assignment),
+		PagingGroupsByExt: make(map[string]PagingGroup),
+		AlertsByName:      make(map[string]Alert),
+		RingtonesByNAme:   make(map[string]Ringtone),
 	}
 	for _, location := range d.Locations {
 		if location.Name != "" {
@@ -75,6 +78,11 @@ func (d *DataSet) Lookup() Lookup {
 			lookup.PhoneAssignments[mac] = Assignment{Type: PersonAssigned, Username: person.Username}
 		}
 	}
+	for _, group := range d.PagingGroups {
+		if group.Extension != "" {
+			lookup.PagingGroupsByExt[group.Extension] = group
+		}
+	}
 	for _, alert := range d.Alerts {
 		if alert.Name != "" {
 			lookup.AlertsByName[alert.Name] = alert
@@ -103,6 +111,9 @@ func (d *DataSet) Equal(e *DataSet) bool {
 	if len(d.Phones) != len(e.Phones) {
 		return false
 	}
+	if len(d.PagingGroups) != len(e.PagingGroups) {
+		return false
+	}
 	if len(d.Alerts) != len(e.Alerts) {
 		return false
 	}
@@ -128,6 +139,11 @@ func (d *DataSet) Equal(e *DataSet) bool {
 	}
 	for i := range d.Phones {
 		if d.Phones[i] != e.Phones[i] {
+			return false
+		}
+	}
+	for i := range d.PagingGroups {
+		if d.PagingGroups[i] != e.PagingGroups[i] {
 			return false
 		}
 	}

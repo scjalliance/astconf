@@ -41,8 +41,8 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				entry.FullName = loc.Abbreviation + "-" + entry.FullName
 			}
 			entry.Timezone = loc.Timezone
-			entry.Alerts = alertsForPagingGroups(lookup, loc.PagingGroups...)
-			entry.Ringtones = ringtonesForAlerts(lookup, entry.Alerts...)
+			entry.Alerts = append(base.Alerts, alertsForPagingGroups(lookup, loc.PagingGroups...)...)
+			entry.Ringtones = append(base.Ringtones, ringtonesForAlerts(lookup, entry.Alerts...)...)
 		}
 		m.Add(dpma.OverlayPhones(base, entry))
 	}

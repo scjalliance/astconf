@@ -22,6 +22,9 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 	// Step 1: Add all phones
 	for _, phone := range data.Phones {
 		username := lineUsername(phone.MAC, lookup)
+		if username == "" {
+			continue
+		}
 		var vars []astval.Var
 		var callerID string
 		if phone.Location != "" {

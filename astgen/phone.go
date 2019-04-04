@@ -25,22 +25,22 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 	// Step 1: Add all phones
 	for _, phone := range data.Phones {
 		username := phoneUsername(phone.MAC, lookup)
-		fullName := username
-		tz := ""
-		if loc, ok := lookup.LocationByName[phone.Location]; ok {
-			if loc.Abbreviation != "" {
-				fullName = loc.Abbreviation + "-" + fullName
-			}
-			tz = loc.Timezone
+		if username == "" {
+			continue
 		}
 		entry := dpma.Phone{
 			Username: username,
 			MAC:      phone.MAC,
-			FullName: fullName,
-			Timezone: tz,
+			FullName: username,
 		}
 		if line := lineUsername(phone.MAC, lookup); line != "" {
 			entry.Lines = []string{line}
+		}
+		if loc, ok := lookup.LocationByName[phone.Location]; ok {
+			if loc.Abbreviation != "" {
+				entry.FullName = loc.Abbreviation + "-" + entry.FullName
+			}
+			entry.Timezone = loc.Timezone
 		}
 		m.Add(dpma.OverlayPhones(base, entry))
 	}

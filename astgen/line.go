@@ -17,6 +17,9 @@ func Lines(data *astorg.DataSet) []dpma.Line {
 	// Step 1: Add all phones
 	for _, phone := range data.Phones {
 		username := lineUsername(phone.MAC, lookup)
+		if username == "" {
+			continue
+		}
 		label := phone.MAC
 		if loc, ok := lookup.LocationByName[phone.Location]; ok {
 			if loc.Abbreviation != "" {

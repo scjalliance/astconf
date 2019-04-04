@@ -37,7 +37,7 @@ func (d *DataSet) Lookup() Lookup {
 		PhoneAssignments:  make(map[string]Assignment),
 		PagingGroupsByExt: make(map[string]PagingGroup),
 		AlertsByName:      make(map[string]Alert),
-		RingtonesByNAme:   make(map[string]Ringtone),
+		RingtonesByName:   make(map[string]Ringtone),
 	}
 	for _, location := range d.Locations {
 		if location.Name != "" {
@@ -90,7 +90,7 @@ func (d *DataSet) Lookup() Lookup {
 	}
 	for _, ringtone := range d.Ringtones {
 		if ringtone.Name != "" {
-			lookup.RingtonesByNAme[ringtone.Name] = ringtone
+			lookup.RingtonesByName[ringtone.Name] = ringtone
 		}
 	}
 	return lookup

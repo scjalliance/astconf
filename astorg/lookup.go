@@ -10,5 +10,5 @@ type Lookup struct {
 	PhoneAssignments  map[string]Assignment  // Maps phone mac addresses to their highest priority assignments
 	PagingGroupsByExt map[string]PagingGroup // Maps extensions to paging groups
 	AlertsByName      map[string]Alert       // Maps alert names to alerts
-	RingtonesByNAme   map[string]Ringtone    // Maps ringtone names to ringtones
+	RingtonesByName   map[string]Ringtone    // Maps ringtone names to ringtones
 }

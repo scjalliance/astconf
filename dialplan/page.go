@@ -23,7 +23,7 @@ type PageApp struct {
 	Forward          bool   // !i: Forward the page to forwarded recipients
 	Quiet            bool   //  q: Don't present a paging beep to recipients
 	Record           bool   //  r: Record the page to a file
-	InUse            bool   // !s: Include recipeints with a phone state other than NOT_INUSE
+	InUse            bool   // !s: Include recipients with a phone state other than NOT_INUSE
 	Announcement     string //  A: Play an announcement to all recipients
 	AnnounceToCaller bool   //  x: Play an announcement to the caller as well
 	Timeout          int    // Number of seconds to attempt a call before giving up

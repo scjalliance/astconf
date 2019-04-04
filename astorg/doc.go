@@ -5,7 +5,7 @@
 // An organization described by the types in this package can define
 // locations, people, phones and phone roles.
 //
-// The astorgconv package can be used to transform the data types
+// The astgen package can be used to transform the data types
 // in this package into asterisk configuration files.
 //
 // This package is experimental and is subject to breaking changes.

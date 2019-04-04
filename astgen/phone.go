@@ -41,6 +41,8 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				entry.FullName = loc.Abbreviation + "-" + entry.FullName
 			}
 			entry.Timezone = loc.Timezone
+			entry.Alerts = alertsForPagingGroups(lookup, loc.PagingGroups...)
+			entry.Ringtones = ringtonesForAlerts(lookup, entry.Alerts...)
 		}
 		m.Add(dpma.OverlayPhones(base, entry))
 	}
@@ -73,6 +75,8 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 			if person.Firmware != "" {
 				entry.Firmware = []string{person.Firmware}
 			}
+			entry.Alerts = alertsForPagingGroups(lookup, person.PagingGroups...)
+			entry.Ringtones = append(entry.Ringtones, ringtonesForAlerts(lookup, entry.Alerts...)...)
 			m.Merge(entry)
 			finished[mac] = true
 		}
@@ -100,6 +104,8 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				}
 				entry.BLFItems = buildURL(contactsURL, fmt.Sprintf("%s.blf.xml", role.Username))
 			}
+			entry.Alerts = alertsForPagingGroups(lookup, role.PagingGroups...)
+			entry.Ringtones = ringtonesForAlerts(lookup, entry.Alerts...)
 			m.Merge(entry)
 			finished[mac] = true
 		}
@@ -116,4 +122,28 @@ func buildURL(prefix, file string) string {
 	}
 	u.Path = path.Join(u.Path, file)
 	return u.String()
+}
+
+func alertsForPagingGroups(lookup astorg.Lookup, extensions ...string) (alerts []string) {
+	for _, ext := range extensions {
+		if group, ok := lookup.PagingGroupsByExt[ext]; ok {
+			if group.Alert == "" {
+				continue
+			}
+			alerts = append(alerts, group.Alert)
+		}
+	}
+	return alerts
+}
+
+func ringtonesForAlerts(lookup astorg.Lookup, alerts ...string) (ringtones []string) {
+	for _, alert := range alerts {
+		if alert, ok := lookup.AlertsByName[alert]; ok {
+			if alert.Ringtone == "" {
+				continue
+			}
+			ringtones = append(ringtones, alert.Ringtone)
+		}
+	}
+	return ringtones
 }

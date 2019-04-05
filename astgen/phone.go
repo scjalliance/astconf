@@ -142,6 +142,10 @@ func ringtonesForAlerts(lookup astorg.Lookup, alerts ...string) (ringtones []str
 			if alert.Ringtone == "" {
 				continue
 			}
+			if _, ok := lookup.RingtonesByName[alert.Ringtone]; !ok {
+				// Not having a ringtone entry implies that it's a built-in ringtone
+				continue
+			}
 			ringtones = append(ringtones, alert.Ringtone)
 		}
 	}

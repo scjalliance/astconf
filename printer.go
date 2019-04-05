@@ -47,6 +47,15 @@ func NewPrinter(w io.Writer) *Printer {
 	}
 }
 
+// Include will print a file include construct to p.Writer for the given path.
+func (p *Printer) Include(path string) error {
+	wg := writegroup{Writer: p.Writer}
+	wg.Write(includeStart)
+	wg.Write([]byte(path))
+	wg.Write(newline)
+	return wg.Err()
+}
+
 //func (p *Printer) Template(name string, templates ...string) error {
 //}
 
@@ -160,11 +169,6 @@ func (p *Printer) Setting(setting, value string) error {
 	wg.Write([]byte(value))
 	wg.Write(newline)
 	return wg.Err()
-}
-
-// Include will print an include construct to p.Writer for the given path.
-func (p *Printer) Include(path string) error {
-	return nil
 }
 
 // Object will print an object to p.Writer.

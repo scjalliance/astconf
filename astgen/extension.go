@@ -62,9 +62,9 @@ func PhoneExtensions(data *astorg.DataSet, context string) dialplan.Section {
 	return section
 }
 
-// IntercomExtensions generates a dialplan section that includes all intercom
-// extensions in a dataset.
-func IntercomExtensions(data *astorg.DataSet, context string) dialplan.Section {
+// PagingGroupExtensions generates a dialplan section that includes all
+// paging group extensions in a dataset.
+func PagingGroupExtensions(data *astorg.DataSet, context string) dialplan.Section {
 	lookup := data.Lookup()
 
 	// Build up the set of devices contained in each paging group
@@ -135,60 +135,46 @@ func IntercomExtensions(data *astorg.DataSet, context string) dialplan.Section {
 	// Build an extension for each paging group
 	section := dialplan.Section{Context: context}
 
-	for _, group := range groups {
-		devices := dedupAndSortDevices(membership[group])
+	for _, group := range data.PagingGroups {
+		devices := dedupAndSortDevices(membership[group.Extension])
 
 		name := dialplan.CallerID("name")
 		number := dialplan.CallerID("num")
 		intercom := dialplan.String("Intercom")
 		zero := dialplan.Int(0)
 
-		ext1 := dialplan.Extension{
-			Number: group,
-			Actions: []dialplan.Action{
-				dialplan.Noop(fmt.Sprintf("Intercom %s", group)),
-				dialplan.Playback("beep"),
-				dialplan.SIPAddHeader("Alert-Info", "beep-answer"),
-				dialplan.Set(name, dialplan.IfElse(
-					dialplan.GreaterThan(dialplan.Len(number), zero),
-					name,
-					intercom,
-				)),
-				dialplan.Set(number, dialplan.IfElse(
-					dialplan.GreaterThan(dialplan.Len(number), zero),
-					number,
-					intercom,
-				)),
-				dialplan.PageApp{
-					Recipients:   devices,
-					Announcement: "beep",
-				},
-				dialplan.Hangup(),
+		actions := []dialplan.Action{
+			dialplan.Noop(fmt.Sprintf("Paging %s", group.Name)),
+			dialplan.Playback("beep"),
+		}
+		if group.Alert != "" {
+			actions = append(actions, dialplan.SIPAddHeader("Alert-Info", group.Alert))
+		}
+		actions = append(actions, []dialplan.Action{
+			dialplan.Set(name, dialplan.IfElse(
+				dialplan.GreaterThan(dialplan.Len(number), zero),
+				name,
+				intercom,
+			)),
+			dialplan.Set(number, dialplan.IfElse(
+				dialplan.GreaterThan(dialplan.Len(number), zero),
+				number,
+				intercom,
+			)),
+			dialplan.PageApp{
+				Recipients:   devices,
+				Announcement: "beep",
 			},
+			dialplan.Hangup(),
+		}...)
+
+		ext := dialplan.Extension{
+			Comment: group.Name,
+			Number:  group.Extension,
+			Actions: actions,
 		}
 
-		ext2 := dialplan.Extension{
-			Number: "*" + group,
-			Actions: []dialplan.Action{
-				dialplan.Noop(fmt.Sprintf("Intercom %s", group)),
-				dialplan.Playback("beep"),
-				dialplan.SIPAddHeader("Alert-Info", "intercom"),
-				dialplan.Set(name, dialplan.IfElse(
-					dialplan.GreaterThan(dialplan.Len(number), zero),
-					name,
-					intercom,
-				)),
-				dialplan.Set(number, dialplan.IfElse(
-					dialplan.GreaterThan(dialplan.Len(number), zero),
-					number,
-					intercom,
-				)),
-				dialplan.Page(devices...),
-				dialplan.Hangup(),
-			},
-		}
-
-		section.Extensions = append(section.Extensions, ext1, ext2)
+		section.Extensions = append(section.Extensions, ext)
 	}
 
 	return section

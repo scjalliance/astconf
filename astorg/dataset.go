@@ -1,16 +1,14 @@
 package astorg
 
-import "strings"
-
 // DataSet represents a complete dataset for an organization.
 type DataSet struct {
-	Locations    []Location
-	People       []Person
-	PhoneRoles   []PhoneRole
-	Phones       []Phone
-	PagingGroups []PagingGroup
-	Alerts       []Alert
-	Ringtones    []Ringtone
+	Locations    LocationList
+	People       PersonList
+	PhoneRoles   PhoneRoleList
+	Phones       PhoneList
+	PagingGroups PagingGroupList
+	Alerts       AlertList
+	Ringtones    RingtoneList
 }
 
 // Size returns the total number of records in the data set.
@@ -28,72 +26,17 @@ func (d *DataSet) Size() int {
 
 // Lookup returns a lookup constructed from the data set.
 func (d *DataSet) Lookup() Lookup {
-	lookup := Lookup{
-		LocationByName:    make(map[string]Location),
-		PersonByEmail:     make(map[string]Person),
-		PersonByNumber:    make(map[string]Person),
-		RoleByUsername:    make(map[string]PhoneRole),
-		RoleByNumber:      make(map[string]PhoneRole),
-		PhoneAssignments:  make(map[string]Assignment),
-		PagingGroupsByExt: make(map[string]PagingGroup),
-		AlertsByName:      make(map[string]Alert),
-		RingtonesByName:   make(map[string]Ringtone),
+	return Lookup{
+		LocationByName:    d.Locations.ByName(),
+		PersonByEmail:     d.People.ByEmail(),
+		PersonByNumber:    d.People.ByExtension(),
+		RoleByUsername:    d.PhoneRoles.ByUsername(),
+		RoleByNumber:      d.PhoneRoles.ByExtension(),
+		PhoneAssignments:  MergeAssignments(d.Phones.Assignments(), d.PhoneRoles.Assignments(), d.People.Assignments()),
+		PagingGroupsByExt: d.PagingGroups.ByExtension(),
+		AlertsByName:      d.Alerts.ByName(),
+		RingtonesByName:   d.Ringtones.ByName(),
 	}
-	for _, location := range d.Locations {
-		if location.Name != "" {
-			lookup.LocationByName[location.Name] = location
-		}
-	}
-	for _, phone := range d.Phones {
-		if _, found := lookup.PhoneAssignments[phone.MAC]; found {
-			continue
-		}
-		lookup.PhoneAssignments[phone.MAC] = Assignment{Type: Unassigned, Username: phone.MAC}
-	}
-	for _, role := range d.PhoneRoles {
-		if role.Username != "" {
-			lookup.RoleByUsername[role.Username] = role
-		}
-		if role.Extension != "" {
-			lookup.RoleByNumber[role.Extension] = role
-		}
-		for _, mac := range role.Phones {
-			if assignment := lookup.PhoneAssignments[mac]; assignment.Type != Unassigned {
-				continue
-			}
-			lookup.PhoneAssignments[mac] = Assignment{Type: RoleAssigned, Username: role.Username}
-		}
-	}
-	for _, person := range d.People {
-		for _, address := range person.EmailAddresses {
-			lookup.PersonByEmail[strings.ToLower(address.Address)] = person
-		}
-		if person.Extension != "" {
-			lookup.PersonByNumber[person.Extension] = person
-		}
-		for _, mac := range person.Phones {
-			if assignment := lookup.PhoneAssignments[mac]; assignment.Type != Unassigned {
-				continue
-			}
-			lookup.PhoneAssignments[mac] = Assignment{Type: PersonAssigned, Username: person.Username}
-		}
-	}
-	for _, group := range d.PagingGroups {
-		if group.Extension != "" {
-			lookup.PagingGroupsByExt[group.Extension] = group
-		}
-	}
-	for _, alert := range d.Alerts {
-		if alert.Name != "" {
-			lookup.AlertsByName[alert.Name] = alert
-		}
-	}
-	for _, ringtone := range d.Ringtones {
-		if ringtone.Name != "" {
-			lookup.RingtonesByName[ringtone.Name] = ringtone
-		}
-	}
-	return lookup
 }
 
 // Equal reports whether d and e are equal.

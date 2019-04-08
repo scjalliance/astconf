@@ -1,31 +1,32 @@
 package astorg
 
-// AssignmentMap is a map of phone assignments indexed by mac address.
-// It tracks phone assignments and incorporates new addresses according to
-// a hierarchy of preferred assignment types:
+// AssignmentMap is a map of phone assignments indexed a key, which is
+// typically the phone's mac address. The map is used to progressively
+// tracks phone assignments; it incorporates new values according to
+// a prioritized order of assignment types:
 //
 //  1. People
 //  2. Roles
 //  3. Unassigned
 //
-// When more than entity of the same assignment type attempts to claim a phone,
+// When more than one entity of the same assignment type claims a phone,
 // the first entity added to the map will hold the claim.
 type AssignmentMap map[string]Assignment
 
-// Add attempts to add a phone assignment to the map for the given mac address.
+// Add attempts to add a phone assignment to the map for the given key.
 // The assignment will succeed if an existing assignment of equal or
-// greater priority does not already exist in the map.
+// greater priority does not already exist in the map with that key.
 //
 // Add returns true if the assignment was added successfully.
-func (m AssignmentMap) Add(mac string, assignment Assignment) bool {
-	if mac == "" {
+func (m AssignmentMap) Add(key string, assignment Assignment) bool {
+	if key == "" {
 		return false
 	}
-	if existing, found := m[mac]; !found {
-		m[mac] = assignment
+	if existing, found := m[key]; !found {
+		m[key] = assignment
 		return true
 	} else if existing.Type < assignment.Type {
-		m[mac] = assignment
+		m[key] = assignment
 		return true
 	}
 	return false
@@ -40,8 +41,8 @@ func MergeAssignments(maps ...AssignmentMap) AssignmentMap {
 	}
 	combined := make(AssignmentMap, count)
 	for _, m := range maps {
-		for mac, assignment := range m {
-			combined.Add(mac, assignment)
+		for key, assignment := range m {
+			combined.Add(key, assignment)
 		}
 	}
 	return combined

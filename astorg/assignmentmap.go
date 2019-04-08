@@ -32,6 +32,18 @@ func (m AssignmentMap) Add(key string, assignment Assignment) bool {
 	return false
 }
 
+// ByUsername returns the set of keys assigned to each username.
+func (m AssignmentMap) ByUsername() map[string][]string {
+	out := make(map[string][]string, len(m))
+	for key, assignment := range m {
+		if assignment.Username == "" {
+			continue
+		}
+		out[assignment.Username] = append(out[assignment.Username], key)
+	}
+	return out
+}
+
 // MergeAssignments merges any number of assignment maps according to
 // the assignment priority rules.
 func MergeAssignments(maps ...AssignmentMap) AssignmentMap {

@@ -7,7 +7,7 @@ type Lookup struct {
 	PersonByNumber    map[string]Person      // Maps phone numbers to people
 	RoleByUsername    map[string]PhoneRole   // Maps usernames to phone roles
 	RoleByNumber      map[string]PhoneRole   // Maps phone numbers to phone roles
-	PhoneAssignments  map[string]Assignment  // Maps phone mac addresses to their highest priority assignments
+	PhoneAssignments  AssignmentMap          // Maps phone mac addresses to their highest priority assignments
 	PagingGroupsByExt map[string]PagingGroup // Maps extensions to paging groups
 	AlertsByName      map[string]Alert       // Maps alert names to alerts
 	RingtonesByName   map[string]Ringtone    // Maps ringtone names to ringtones

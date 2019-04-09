@@ -107,12 +107,14 @@ func PagingGroupExtensions(data *astorg.DataSet, context string) dialplan.Sectio
 				number,
 				intercom,
 			)),
-			dialplan.PageApp{
+		}...)
+		if len(devices) > 0 {
+			actions = append(actions, dialplan.PageApp{
 				Recipients:   devices,
 				Announcement: "beep",
-			},
-			dialplan.Hangup(),
-		}...)
+			})
+		}
+		actions = append(actions, dialplan.Hangup())
 
 		ext := dialplan.Extension{
 			Comment: group.Name,

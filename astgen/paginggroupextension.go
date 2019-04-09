@@ -18,7 +18,7 @@ func PagingGroupExtensions(data *astorg.DataSet, context string) dialplan.Sectio
 
 	// Step 1: Add phones in locations with paging groups
 	for _, phone := range data.Phones {
-		username := phoneUsername(phone.MAC, lookup)
+		username := lineUsername(phone.MAC, lookup)
 		device := dialplan.SIP(username)
 		if loc, ok := lookup.LocationByName[phone.Location]; ok {
 			for _, group := range loc.PagingGroups {
@@ -39,7 +39,7 @@ func PagingGroupExtensions(data *astorg.DataSet, context string) dialplan.Sectio
 			if finished[mac] {
 				continue
 			}
-			username := phoneUsername(mac, lookup)
+			username := lineUsername(mac, lookup)
 			device := dialplan.SIP(username)
 			for _, group := range person.PagingGroups {
 				if members, ok := membership[group]; ok {
@@ -58,7 +58,7 @@ func PagingGroupExtensions(data *astorg.DataSet, context string) dialplan.Sectio
 			if finished[mac] {
 				continue
 			}
-			username := phoneUsername(mac, lookup)
+			username := lineUsername(mac, lookup)
 			device := dialplan.SIP(username)
 			for _, group := range role.PagingGroups {
 				if members, ok := membership[group]; ok {

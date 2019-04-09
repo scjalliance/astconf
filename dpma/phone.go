@@ -92,7 +92,7 @@ func (p *Phone) SectionName() string {
 	if p.Username != "" {
 		return p.Username
 	}
-	return strings.ToLower(strings.Replace(p.MAC, ":", "", -1))
+	return strings.ReplaceAll(p.MAC, ":", "")
 }
 
 // MarshalAsteriskPreamble marshals the type.

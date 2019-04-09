@@ -1,8 +1,6 @@
 package dpma
 
 import (
-	"strings"
-
 	"github.com/scjalliance/astconf"
 	"github.com/scjalliance/astconf/astoverlay"
 	"github.com/scjalliance/astconf/astval"
@@ -32,7 +30,7 @@ type Line struct {
 
 // SectionName returns the name of the line section.
 func (line *Line) SectionName() string {
-	return strings.ToLower(strings.Replace(line.Name, ":", "", -1))
+	return line.Name
 }
 
 // MarshalAsteriskPreamble marshals the type.

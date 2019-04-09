@@ -41,8 +41,8 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				entry.FullName = loc.Abbreviation + "-" + entry.FullName
 			}
 			entry.Timezone = loc.Timezone
-			entry.Alerts = append(base.Alerts, alertsForPagingGroups(lookup, loc.PagingGroups...)...)
-			entry.Ringtones = append(base.Ringtones, ringtonesForAlerts(lookup, entry.Alerts...)...)
+			entry.Alerts = dedupStringSlice(append(base.Alerts, alertsForPagingGroups(lookup, loc.PagingGroups...)...))
+			entry.Ringtones = dedupStringSlice(append(base.Ringtones, ringtonesForAlerts(lookup, entry.Alerts...)...))
 		}
 		m.Add(dpma.OverlayPhones(base, entry))
 	}
@@ -76,7 +76,7 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				entry.Firmware = []string{person.Firmware}
 			}
 			entry.Alerts = alertsForPagingGroups(lookup, person.PagingGroups...)
-			entry.Ringtones = append(entry.Ringtones, ringtonesForAlerts(lookup, entry.Alerts...)...)
+			entry.Ringtones = dedupStringSlice(append(entry.Ringtones, ringtonesForAlerts(lookup, entry.Alerts...)...))
 			m.Merge(entry)
 			finished[mac] = true
 		}

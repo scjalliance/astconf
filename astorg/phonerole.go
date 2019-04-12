@@ -11,6 +11,7 @@ type PhoneRole struct {
 	Hidden         bool // Hidden from organization contact groups
 	ContactsSource string
 	CallerID       string
+	MailboxNumber  string
 	Apps           []string
 	PagingGroups   []string
 	Phones         []string // MACs of phones to be assigned this role
@@ -52,6 +53,9 @@ func (p *PhoneRole) Equal(q *PhoneRole) bool {
 		return false
 	}
 	if p.CallerID != q.CallerID {
+		return false
+	}
+	if p.MailboxNumber != q.MailboxNumber {
 		return false
 	}
 

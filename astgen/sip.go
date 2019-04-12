@@ -88,6 +88,9 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				Username: username,
 				CallerID: fmt.Sprintf("\"%s\" <%s>", role.DisplayName, role.Extension),
 			}
+			if role.MailboxNumber != "" {
+				entity.Mailbox = fmt.Sprintf("%s@%s", role.MailboxNumber, context)
+			}
 			m.Merge(entity)
 			finished[mac] = true
 		}

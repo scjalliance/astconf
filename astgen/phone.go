@@ -75,6 +75,9 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 			if person.Firmware != "" {
 				entry.Firmware = []string{person.Firmware}
 			}
+			if person.DefaultRingtone != "" {
+				entry.ActiveRingtone = person.DefaultRingtone
+			}
 			entry.Alerts = alertsForPagingGroups(lookup, person.PagingGroups...)
 			entry.Ringtones = dedupStringSlice(append(entry.Ringtones, ringtonesForAlerts(lookup, entry.Alerts...)...))
 			m.Merge(entry)

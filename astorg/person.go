@@ -21,6 +21,7 @@ type Person struct {
 	VoicemailExtension string
 	VoicemailCode      string
 	VoicemailAccess    astorgvm.Access
+	DefaultRingtone    string
 	Alerts             []string
 	Ringtones          []string
 	Apps               []string

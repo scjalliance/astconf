@@ -9,6 +9,7 @@ type DataSet struct {
 	PagingGroups PagingGroupList
 	Alerts       AlertList
 	Ringtones    RingtoneList
+	Mailboxes    MailboxList
 }
 
 // Size returns the total number of records in the data set.
@@ -21,6 +22,7 @@ func (d *DataSet) Size() int {
 	length += len(d.PagingGroups)
 	length += len(d.Alerts)
 	length += len(d.Ringtones)
+	length += len(d.Mailboxes)
 	return length
 }
 
@@ -36,6 +38,7 @@ func (d *DataSet) Lookup() Lookup {
 		PagingGroupsByExt: d.PagingGroups.ByExtension(),
 		AlertsByName:      d.Alerts.ByName(),
 		RingtonesByName:   d.Ringtones.ByName(),
+		MailboxesByName:   d.Mailboxes.ByName(),
 	}
 }
 
@@ -61,6 +64,9 @@ func (d *DataSet) Equal(e *DataSet) bool {
 		return false
 	}
 	if len(d.Ringtones) != len(e.Ringtones) {
+		return false
+	}
+	if len(d.Mailboxes) != len(e.Mailboxes) {
 		return false
 	}
 
@@ -97,6 +103,11 @@ func (d *DataSet) Equal(e *DataSet) bool {
 	}
 	for i := range d.Ringtones {
 		if d.Ringtones[i] != e.Ringtones[i] {
+			return false
+		}
+	}
+	for i := range d.Mailboxes {
+		if d.Mailboxes[i] != e.Mailboxes[i] {
 			return false
 		}
 	}

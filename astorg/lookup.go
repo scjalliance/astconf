@@ -11,4 +11,5 @@ type Lookup struct {
 	PagingGroupsByExt map[string]PagingGroup // Maps extensions to paging groups
 	AlertsByName      map[string]Alert       // Maps alert names to alerts
 	RingtonesByName   map[string]Ringtone    // Maps ringtone names to ringtones
+	MailboxesByName   map[string]Mailbox     // Maps mailbox names to mailboxes
 }

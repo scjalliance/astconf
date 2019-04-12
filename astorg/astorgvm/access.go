@@ -14,6 +14,7 @@ const (
 	Phone         Access = 1
 	Email         Access = 2
 	PhoneAndEmail Access = 3
+	Disabled      Access = 4
 )
 
 // Specified returns true if a holds a non-default value.
@@ -30,6 +31,8 @@ func (a Access) String() string {
 		return "phone"
 	case Email:
 		return "email"
+	case Disabled:
+		return "disabled"
 	default:
 		return ""
 	}

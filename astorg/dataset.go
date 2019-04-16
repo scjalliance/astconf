@@ -10,6 +10,7 @@ type DataSet struct {
 	Alerts       AlertList
 	Ringtones    RingtoneList
 	Mailboxes    MailboxList
+	Tags         TagList
 }
 
 // Size returns the total number of records in the data set.
@@ -23,6 +24,7 @@ func (d *DataSet) Size() int {
 	length += len(d.Alerts)
 	length += len(d.Ringtones)
 	length += len(d.Mailboxes)
+	length += len(d.Tags)
 	return length
 }
 
@@ -39,6 +41,7 @@ func (d *DataSet) Lookup() Lookup {
 		AlertsByName:      d.Alerts.ByName(),
 		RingtonesByName:   d.Ringtones.ByName(),
 		MailboxesByName:   d.Mailboxes.ByName(),
+		TagsByName:        d.Tags.ByName(),
 	}
 }
 
@@ -67,6 +70,9 @@ func (d *DataSet) Equal(e *DataSet) bool {
 		return false
 	}
 	if len(d.Mailboxes) != len(e.Mailboxes) {
+		return false
+	}
+	if len(d.Tags) != len(e.Tags) {
 		return false
 	}
 
@@ -108,6 +114,11 @@ func (d *DataSet) Equal(e *DataSet) bool {
 	}
 	for i := range d.Mailboxes {
 		if d.Mailboxes[i] != e.Mailboxes[i] {
+			return false
+		}
+	}
+	for i := range d.Tags {
+		if !d.Tags[i].Equal(&e.Tags[i]) {
 			return false
 		}
 	}

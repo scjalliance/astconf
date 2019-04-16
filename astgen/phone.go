@@ -57,10 +57,12 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				continue
 			}
 			entry := dpma.Phone{
-				Username:  username,
-				MAC:       mac,
-				FullName:  person.FullName,
-				Ringtones: person.Ringtones,
+				Username:     username,
+				MAC:          mac,
+				FullName:     person.FullName,
+				Alerts:       person.Alerts,
+				Ringtones:    person.Ringtones,
+				Applications: person.Apps,
 			}
 			if line := lineUsername(mac, lookup); line != "" {
 				entry.Lines = []string{line}
@@ -78,8 +80,9 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 			if person.DefaultRingtone != "" {
 				entry.ActiveRingtone = person.DefaultRingtone
 			}
-			entry.Alerts = alertsForPagingGroups(lookup, person.PagingGroups...)
-			entry.Ringtones = dedupStringSlice(append(entry.Ringtones, ringtonesForAlerts(lookup, entry.Alerts...)...))
+			applyPagingGroupsToPhone(lookup, &entry, person.PagingGroups...)
+			applyTagsToPhone(lookup, &entry, person.Tags...)
+			dedupPhoneData(&entry)
 			m.Merge(entry)
 			finished[mac] = true
 		}
@@ -93,9 +96,10 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				continue
 			}
 			entry := dpma.Phone{
-				Username: username,
-				MAC:      mac,
-				FullName: role.DisplayName,
+				Username:     username,
+				MAC:          mac,
+				FullName:     role.DisplayName,
+				Applications: role.Apps,
 			}
 			if line := lineUsername(mac, lookup); line != "" {
 				entry.Lines = []string{line}
@@ -107,8 +111,9 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 				}
 				entry.BLFItems = buildURL(contactsURL, fmt.Sprintf("%s.blf.xml", role.Username))
 			}
-			entry.Alerts = alertsForPagingGroups(lookup, role.PagingGroups...)
-			entry.Ringtones = ringtonesForAlerts(lookup, entry.Alerts...)
+			applyPagingGroupsToPhone(lookup, &entry, role.PagingGroups...)
+			applyTagsToPhone(lookup, &entry, role.Tags...)
+			dedupPhoneData(&entry)
 			m.Merge(entry)
 			finished[mac] = true
 		}
@@ -116,6 +121,27 @@ func Phones(data *astorg.DataSet, base dpma.Phone, contactsURL string) []dpma.Ph
 
 	// Return the compiled set of phone entries
 	return m.Phones()
+}
+
+func applyPagingGroupsToPhone(lookup astorg.Lookup, entry *dpma.Phone, pagingGroups ...string) {
+	entry.Alerts = append(entry.Alerts, alertsForPagingGroups(lookup, pagingGroups...)...)
+	entry.Ringtones = append(entry.Ringtones, ringtonesForAlerts(lookup, entry.Alerts...)...)
+}
+
+func applyTagsToPhone(lookup astorg.Lookup, entry *dpma.Phone, tags ...string) {
+	for _, t := range tags {
+		if tag, ok := lookup.TagsByName[t]; ok {
+			entry.Alerts = append(entry.Alerts, tag.Alerts...)
+			entry.Ringtones = append(entry.Ringtones, tag.Ringtones...)
+			entry.Applications = append(entry.Applications, tag.Apps...)
+			applyPagingGroupsToPhone(lookup, entry, tag.PagingGroups...)
+		}
+	}
+}
+func dedupPhoneData(entry *dpma.Phone) {
+	entry.Alerts = dedupStringSlice(entry.Alerts)
+	entry.Ringtones = dedupStringSlice(entry.Ringtones)
+	entry.Applications = dedupStringSlice(entry.Applications)
 }
 
 func buildURL(prefix, file string) string {

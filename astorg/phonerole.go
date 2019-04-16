@@ -12,8 +12,9 @@ type PhoneRole struct {
 	ContactsSource string
 	CallerID       string
 	MailboxNumber  string
-	Apps           []string
+	Tags           []string
 	PagingGroups   []string
+	Apps           []string
 	Phones         []string // MACs of phones to be assigned this role
 }
 
@@ -60,10 +61,13 @@ func (p *PhoneRole) Equal(q *PhoneRole) bool {
 	}
 
 	// Compare slices
-	if !equalStrings(p.Apps, q.Apps) {
+	if !equalStrings(p.Tags, q.Tags) {
 		return false
 	}
 	if !equalStrings(p.PagingGroups, q.PagingGroups) {
+		return false
+	}
+	if !equalStrings(p.Apps, q.Apps) {
 		return false
 	}
 	if !equalStrings(p.Phones, q.Phones) {

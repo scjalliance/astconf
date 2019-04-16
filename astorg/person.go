@@ -22,10 +22,11 @@ type Person struct {
 	VoicemailCode      string
 	VoicemailAccess    astorgvm.Access
 	DefaultRingtone    string
+	Tags               []string
+	PagingGroups       []string
 	Alerts             []string
 	Ringtones          []string
 	Apps               []string
-	PagingGroups       []string
 	ContactNumbers     []Number // Additional phone numbers
 	Phones             []string // MACs of phones to be assigned this role
 	EmailAddresses     []Email
@@ -92,6 +93,12 @@ func (p *Person) Equal(q *Person) bool {
 	}
 
 	// Compare slices
+	if !equalStrings(p.Tags, q.Tags) {
+		return false
+	}
+	if !equalStrings(p.PagingGroups, q.PagingGroups) {
+		return false
+	}
 	if !equalStrings(p.Alerts, q.Alerts) {
 		return false
 	}
@@ -99,9 +106,6 @@ func (p *Person) Equal(q *Person) bool {
 		return false
 	}
 	if !equalStrings(p.Apps, q.Apps) {
-		return false
-	}
-	if !equalStrings(p.PagingGroups, q.PagingGroups) {
 		return false
 	}
 	if !equalNumbers(p.ContactNumbers, q.ContactNumbers) {

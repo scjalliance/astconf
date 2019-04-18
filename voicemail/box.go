@@ -78,7 +78,9 @@ func (box *Box) Options() (options []string) {
 	if box.SkipEnvelope {
 		options = append(options, "envelope=no")
 	}
-	if !box.EmailOnly {
+	if box.EmailOnly {
+		options = append(options, "delete=yes")
+	} else {
 		options = append(options, "delete=no")
 	}
 	return

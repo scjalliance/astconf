@@ -6,6 +6,27 @@ import (
 	"github.com/scjalliance/astconf/dialplan"
 )
 
+func makeDevices(names ...string) []dialplan.Device {
+	devices := make([]dialplan.Device, 0, len(names))
+	for _, name := range names {
+		devices = append(devices, dialplan.SIP(name))
+	}
+	return devices
+}
+
+func devicesNotInUse(devices []dialplan.Device) dialplan.Expression {
+	var expr dialplan.Expression
+	for _, device := range devices {
+		deviceNotInUse := dialplan.Equal(dialplan.DeviceState(device), dialplan.String("NOT_INUSE"))
+		if expr == nil {
+			expr = deviceNotInUse
+		} else {
+			expr = dialplan.And(expr, deviceNotInUse)
+		}
+	}
+	return expr
+}
+
 func dedupAndSortDevices(devices []dialplan.Device) []dialplan.Device {
 	if len(devices) <= 1 {
 		return devices

@@ -29,6 +29,7 @@ type Person struct {
 	Apps               []string
 	ContactNumbers     []Number // Additional phone numbers
 	Phones             []string // MACs of phones to be assigned this role
+	Softphones         []string // Usernames of software phones to be assigned this role
 	EmailAddresses     []Email
 }
 
@@ -112,6 +113,9 @@ func (p *Person) Equal(q *Person) bool {
 		return false
 	}
 	if !equalStrings(p.Phones, q.Phones) {
+		return false
+	}
+	if !equalStrings(p.Softphones, q.Softphones) {
 		return false
 	}
 	if !equalEmails(p.EmailAddresses, q.EmailAddresses) {

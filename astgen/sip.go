@@ -46,8 +46,34 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 		m.Add(sip.MergeEntities(base, entity))
 	}
 
-	// Step 2: Merge person configuration
-	finished := make(map[string]bool) // Keep track of which phones are fully configured
+	// Step 2: Add all software phones
+	for _, phone := range data.Softphones {
+		var vars []astval.Var
+		var callerID string
+		if phone.Location != "" {
+			vars = append(vars, astval.NewVar("USER_LOCATION", phone.Location))
+			if loc, ok := lookup.LocationByName[phone.Location]; ok {
+				vars = append(vars, astval.NewVar("OUTBOUND_CALLERID", loc.CallerID))
+				vars = append(vars, astval.NewVar("AREACODE", loc.AreaCode))
+				if loc.Abbreviation != "" {
+					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", loc.Abbreviation, phone.Username)
+				}
+			}
+		}
+		entity := sip.Entity{
+			Username:  phone.Username,
+			Secret:    phone.Secret,
+			CallerID:  callerID,
+			Variables: vars,
+		}
+		m.Add(sip.MergeEntities(base, entity))
+	}
+
+	// Step 3: Merge person configuration
+	var (
+		phoneComplete     = make(map[string]bool) // Keep track of which phones are fully configured
+		softphoneComplete = make(map[string]bool) // Keep track of which software phones are fully configured
+	)
 
 	for _, person := range data.People {
 		var vars []astval.Var
@@ -63,7 +89,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 		vars = append(vars, astval.NewVar("USERNAME", person.Username))
 		for _, mac := range person.Phones {
 			username := lineUsername(mac, lookup)
-			if !m.Contains(username) || finished[mac] {
+			if !m.Contains(username) || phoneComplete[mac] {
 				continue
 			}
 			entity := sip.Entity{
@@ -73,15 +99,27 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				Variables: vars,
 			}
 			m.Merge(entity)
-			finished[mac] = true
+			phoneComplete[mac] = true
+		}
+		for _, username := range person.Softphones {
+			if !m.Contains(username) || softphoneComplete[username] {
+				continue
+			}
+			entity := sip.Entity{
+				Username:  username,
+				CallerID:  fmt.Sprintf("\"%s\" <%s>", person.FullName, person.Extension),
+				Variables: vars,
+			}
+			m.Merge(entity)
+			softphoneComplete[username] = true
 		}
 	}
 
-	// Step 3: Merge phone role configuration
+	// Step 4: Merge phone role configuration
 	for _, role := range data.PhoneRoles {
 		for _, mac := range role.Phones {
 			username := lineUsername(mac, lookup)
-			if !m.Contains(username) || finished[mac] {
+			if !m.Contains(username) || phoneComplete[mac] {
 				continue
 			}
 			entity := sip.Entity{
@@ -92,7 +130,18 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				entity.Mailbox = fmt.Sprintf("%s@%s", role.MailboxNumber, context)
 			}
 			m.Merge(entity)
-			finished[mac] = true
+			phoneComplete[mac] = true
+		}
+		for _, username := range role.Softphones {
+			if !m.Contains(username) || softphoneComplete[username] {
+				continue
+			}
+			entity := sip.Entity{
+				Username: username,
+				CallerID: fmt.Sprintf("\"%s\" <%s>", role.DisplayName, role.Extension),
+			}
+			m.Merge(entity)
+			softphoneComplete[username] = true
 		}
 	}
 

@@ -6,6 +6,7 @@ type DataSet struct {
 	People       PersonList
 	PhoneRoles   PhoneRoleList
 	Phones       PhoneList
+	Softphones   SoftphoneList
 	PagingGroups PagingGroupList
 	Alerts       AlertList
 	Ringtones    RingtoneList
@@ -20,6 +21,7 @@ func (d *DataSet) Size() int {
 	length += len(d.People)
 	length += len(d.PhoneRoles)
 	length += len(d.Phones)
+	length += len(d.Softphones)
 	length += len(d.PagingGroups)
 	length += len(d.Alerts)
 	length += len(d.Ringtones)
@@ -60,6 +62,9 @@ func (d *DataSet) Equal(e *DataSet) bool {
 	if len(d.Phones) != len(e.Phones) {
 		return false
 	}
+	if len(d.Softphones) != len(e.Softphones) {
+		return false
+	}
 	if len(d.PagingGroups) != len(e.PagingGroups) {
 		return false
 	}
@@ -94,6 +99,11 @@ func (d *DataSet) Equal(e *DataSet) bool {
 	}
 	for i := range d.Phones {
 		if d.Phones[i] != e.Phones[i] {
+			return false
+		}
+	}
+	for i := range d.Softphones {
+		if d.Softphones[i] != e.Softphones[i] {
 			return false
 		}
 	}

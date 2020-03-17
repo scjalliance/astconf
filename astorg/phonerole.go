@@ -16,6 +16,7 @@ type PhoneRole struct {
 	PagingGroups   []string
 	Apps           []string
 	Phones         []string // MACs of phones to be assigned this role
+	Softphones     []string // Usernames of software phones to be assigned this role
 }
 
 // Equal reports whether p and q are equal.
@@ -71,6 +72,9 @@ func (p *PhoneRole) Equal(q *PhoneRole) bool {
 		return false
 	}
 	if !equalStrings(p.Phones, q.Phones) {
+		return false
+	}
+	if !equalStrings(p.Softphones, q.Softphones) {
 		return false
 	}
 

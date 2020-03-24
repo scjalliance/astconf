@@ -36,7 +36,7 @@ func newStructEncoder(t reflect.Type, canAddr bool) encoderFunc {
 		case f.IndenterAddr():
 			encoders = append(encoders, newFieldEncoder(f.index, newAddrEncoder(indenterEncoder)))
 		}
-		if f.embedded || f.Block() || f.BlockAddr() {
+		if f.embedded || (f.Block() && !f.MultiValue()) || (f.BlockAddr() && !f.MultiValueAddr()) {
 			// It doesn't have a printed field name, so don't count it
 			continue
 		}

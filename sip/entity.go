@@ -27,7 +27,9 @@ type Entity struct {
 	CallGroup          string           `astconf:"callgroup,omitempty"` // FIXME: Use a slice of something?
 	CallerID           string           `astconf:"callerid,omitempty"`
 	CallerPresentation string           `astconf:"callingpres,omitempty"`
-	CanReinvite        string           `astconf:"canreinvite,omitempty"`
+	DirectMedia        string           `astconf:"directmedia,omitempty"`
+	DirectMediaPermit  []string         `astconf:"directmediapermit,omitempty"`
+	DirectMediaDeny    []string         `astconf:"directmediadeny,omitempty"`
 	Context            string           `astconf:"context,omitempty"`
 	Host               string           `astconf:"host,omitempty"`
 	Mailbox            string           `astconf:"mailbox,omitempty"`
@@ -73,7 +75,9 @@ func overlayEntityScalars(from, to *Entity) {
 	astoverlay.String(&from.CallGroup, &to.CallGroup)
 	astoverlay.String(&from.CallerID, &to.CallerID)
 	astoverlay.String(&from.CallerPresentation, &to.CallerPresentation)
-	astoverlay.String(&from.CanReinvite, &to.CanReinvite)
+	astoverlay.String(&from.DirectMedia, &to.DirectMedia)
+	astoverlay.StringSlice(&from.DirectMediaPermit, &to.DirectMediaPermit)
+	astoverlay.StringSlice(&from.DirectMediaDeny, &to.DirectMediaDeny)
 	astoverlay.String(&from.Context, &to.Context)
 	astoverlay.String(&from.Host, &to.Host)
 	astoverlay.String(&from.Mailbox, &to.Mailbox)

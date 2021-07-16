@@ -14,16 +14,6 @@ func (op BinaryOp) Expr() ExprDef {
 	return ExprDef{Content: e1 + op.Operator + e2, Kind: Op}
 }
 
-// Or returns a logical or operation.
-func Or(e1 Expression, e2 Expression) BinaryOp {
-	return BinaryOp{E1: e1, E2: e2, Operator: "|"}
-}
-
-// And returns a logical and operation.
-func And(e1 Expression, e2 Expression) BinaryOp {
-	return BinaryOp{E1: e1, E2: e2, Operator: "&"}
-}
-
 // Equal returns an equality operation.
 func Equal(e1 Expression, e2 Expression) BinaryOp {
 	return BinaryOp{E1: e1, E2: e2, Operator: "="}

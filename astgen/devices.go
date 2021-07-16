@@ -17,7 +17,11 @@ func makeDevices(names ...string) []dialplan.Device {
 func devicesNotInUse(devices []dialplan.Device) dialplan.Expression {
 	var expr dialplan.Expression
 	for _, device := range devices {
-		deviceNotInUse := dialplan.Equal(dialplan.DeviceState(device), dialplan.String("NOT_INUSE"))
+		deviceNotInUse := dialplan.Or(
+			dialplan.Equal(dialplan.DeviceState(device), dialplan.String("NOT_INUSE")),
+			dialplan.Equal(dialplan.DeviceState(device), dialplan.String("UNAVAILABLE")),
+			dialplan.Equal(dialplan.DeviceState(device), dialplan.String("INVALID")),
+		)
 		if expr == nil {
 			expr = deviceNotInUse
 		} else {

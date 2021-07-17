@@ -15,20 +15,25 @@ func makeDevices(names ...string) []dialplan.Device {
 }
 
 func devicesNotInUse(devices []dialplan.Device) dialplan.Expression {
-	var expr dialplan.Expression
+	var deviceStates []dialplan.Expression
 	for _, device := range devices {
 		deviceNotInUse := dialplan.Or(
 			dialplan.Equal(dialplan.DeviceState(device), dialplan.String("NOT_INUSE")),
 			dialplan.Equal(dialplan.DeviceState(device), dialplan.String("UNAVAILABLE")),
 			dialplan.Equal(dialplan.DeviceState(device), dialplan.String("INVALID")),
 		)
-		if expr == nil {
-			expr = deviceNotInUse
-		} else {
-			expr = dialplan.And(expr, deviceNotInUse)
-		}
+		deviceStates = append(deviceStates, deviceNotInUse)
 	}
-	return expr
+	switch len(deviceStates) {
+	case 0:
+		return nil
+	case 1:
+		return deviceStates[0]
+	case 2:
+		return dialplan.And(deviceStates[0], deviceStates[1])
+	default:
+		return dialplan.And(deviceStates[0], deviceStates[1], deviceStates[2:]...)
+	}
 }
 
 func dedupAndSortDevices(devices []dialplan.Device) []dialplan.Device {

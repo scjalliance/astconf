@@ -33,3 +33,9 @@ func (f PresenceStateFunc) Expr() ExprDef {
 func (f PresenceStateFunc) Ref() string {
 	return f.Func().String()
 }
+
+// QuotedContent returns true, which indicates that the function call shoud be
+// wrapped in double quotes when compared.
+func (f PresenceStateFunc) QuotedContent() bool {
+	return true
+}

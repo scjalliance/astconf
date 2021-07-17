@@ -11,6 +11,16 @@ type BinaryOp struct {
 func (op BinaryOp) Expr() ExprDef {
 	e1 := op.E1.Expr().String()
 	e2 := op.E2.Expr().String()
+	quoted := false
+	if q1, ok := op.E1.(Quoteable); ok {
+		quoted = quoted || q1.QuotedContent()
+	}
+	if q2, ok := op.E2.(Quoteable); ok {
+		quoted = quoted || q2.QuotedContent()
+	}
+	if quoted {
+		return ExprDef{Content: `"` + e1 + `"` + op.Operator + `"` + e2 + `"`, Kind: Op}
+	}
 	return ExprDef{Content: e1 + op.Operator + e2, Kind: Op}
 }
 

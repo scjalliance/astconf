@@ -33,3 +33,9 @@ func (f CallerIDFunc) Expr() ExprDef {
 func (f CallerIDFunc) Ref() string {
 	return f.Func().String()
 }
+
+// QuotedContent returns true, which indicates that the function call shoud be
+// wrapped in double quotes when compared.
+func (f CallerIDFunc) QuotedContent() bool {
+	return true
+}

@@ -19,8 +19,8 @@ type Employee struct {
 func Example() {
 	section := Section{Context: "slate-employees"}
 	users := []Employee{
-		Employee{Number: "100", Name: "Fred Flintstone", Phone: SIP("fred.flintstone")},
-		Employee{Number: "101", Name: "Barney Rubble", Phone: SIP("barney.rubble")},
+		{Number: "100", Name: "Fred Flintstone", Phone: SIP("fred.flintstone")},
+		{Number: "101", Name: "Barney Rubble", Phone: SIP("barney.rubble")},
 	}
 	for _, user := range users {
 		section.Extensions = append(section.Extensions, Extension{

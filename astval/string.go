@@ -14,8 +14,8 @@ type String struct {
 }
 
 // NewString returns a string with the given value.
-func NewString(value int) Int {
-	return Int{value: value, specified: true}
+func NewString(value string) String {
+	return String{value: value, specified: true}
 }
 
 // Set applies value to s.

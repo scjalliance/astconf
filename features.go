@@ -40,6 +40,7 @@ const (
 	tfObjectAddr
 	tfOmit
 	tfOmitEmpty
+	tfCommaSeparated
 
 	tfMarshalerMask     = tfBlockMarshaler | tfObjectMarshaler | tfSettingMarshaler | tfTextMarshaler
 	tfMarshalerAddrMask = tfBlockMarshalerAddr | tfObjectMarshalerAddr | tfSettingMarshalerAddr | tfTextMarshalerAddr
@@ -54,6 +55,9 @@ func tagFeatures(tag *fieldTag) (features typeFeature) {
 	}
 	if tag.Contains("object") {
 		features |= tfObject
+	}
+	if tag.Contains("commaseparated") {
+		features |= tfCommaSeparated
 	}
 	return features
 }
@@ -123,7 +127,8 @@ func typeFeatures(t reflect.Type) (features typeFeature) {
 	switch t.Kind() {
 	case reflect.Slice:
 		// Slices of non-blocks get written out as multiple values with the
-		// same field name, unless they perform their own marshaling.
+		// same field name, unless they perform their own marshaling or have
+		// the commaseparated tag.
 		elemFeatures := typeFeatures(t.Elem())
 		if !features.Marshaler() && !elemFeatures.Block() {
 			features |= tfMultiValue
@@ -245,6 +250,10 @@ func (tf typeFeature) Omit() bool {
 
 func (tf typeFeature) OmitEmtpy() bool {
 	return tf&tfOmitEmpty != 0
+}
+
+func (tf typeFeature) CommaSeparated() bool {
+	return tf&tfCommaSeparated != 0
 }
 
 func (tf typeFeature) Marshaler() bool {

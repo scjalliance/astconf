@@ -103,13 +103,21 @@ func newStructEncoder(t reflect.Type, canAddr bool) encoderFunc {
 		var elemEnc encoderFunc
 		switch {
 		case f.MultiValue(), f.MultiValueAddr():
-			switch {
-			case f.Object(), f.ObjectAddr():
-				elemEnc = newObjectEncoder(f.name, typeEncoder(t.Elem()))
-			default:
-				elemEnc = newSettingEncoder(f.name, typeEncoder(t.Elem()))
+			if f.CommaSeparated() && !f.Object() && !f.ObjectAddr() {
+				// Special handling for multi-valued fields with the
+				// commaseparated tag
+				elemEnc = newCommaSeparatedSliceEncoder(typeEncoder(t.Elem()))
+				elemEnc = newSettingEncoder(f.name, elemEnc)
+			} else {
+				// Standard handling for multi-valued fields
+				switch {
+				case f.Object(), f.ObjectAddr():
+					elemEnc = newObjectEncoder(f.name, typeEncoder(t.Elem()))
+				default:
+					elemEnc = newSettingEncoder(f.name, typeEncoder(t.Elem()))
+				}
+				elemEnc = newSliceEncoder(elemEnc)
 			}
-			elemEnc = newSliceEncoder(elemEnc)
 		case f.Block(), f.BlockAddr():
 			elemEnc = newBlockEncoder(typeEncoder(t))
 		case f.Object(), f.ObjectAddr():

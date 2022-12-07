@@ -37,8 +37,9 @@ func (elephant *Elephant) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 }
 
 type Zookeeper struct {
-	Name       Name `astconf:"zookeeper_name"`
-	Experience int  `astconf:"experience_level"`
+	Name           Name     `astconf:"zookeeper_name"`
+	Experience     int      `astconf:"experience_level"`
+	FavoriteColors []string `astconf:"favorite_colors,commaseparated,omitempty"`
 }
 
 func (zk Zookeeper) SectionName() string {
@@ -69,14 +70,15 @@ func ExampleEncoder() {
 	err := e.Encode(&Zoo{
 		Name: "Malarky McFee's Mighty Jungle",
 		Elephants: []Elephant{
-			Elephant{Name: "Matilda", Age: 47},
-			Elephant{Name: "Franklin", Age: 52},
-			Elephant{Name: "Georgey the Kid", Age: 5},
+			{Name: "Matilda", Age: 47},
+			{Name: "Franklin", Age: 52},
+			{Name: "Georgey the Kid", Age: 5},
 		},
 		Maintainers: []*Zookeeper{
-			&Zookeeper{
-				Name:       "Gershwin McFee",
-				Experience: 8000,
+			{
+				Name:           "Gershwin McFee",
+				Experience:     8000,
+				FavoriteColors: []string{"blue", "yellow"},
 			},
 		},
 	})
@@ -94,6 +96,7 @@ func ExampleEncoder() {
 	//             type = zookeeper
 	//   zookeeper_name = Gershwin McFee
 	// experience_level = 8000
+	//  favorite_colors = blue,yellow
 	//
 	// [elephant.matilda]
 	//          type = elephant

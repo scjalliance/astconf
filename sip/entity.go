@@ -32,6 +32,7 @@ type Entity struct {
 	DirectMediaDeny    []string         `astconf:"directmediadeny,omitempty"`
 	Context            string           `astconf:"context,omitempty"`
 	Host               string           `astconf:"host,omitempty"`
+	Transport          []string         `astconf:"transport,commaseparated,omitempty"`
 	Mailbox            string           `astconf:"mailbox,omitempty"`
 	Secret             string           `astconf:"secret,omitempty"`
 	Variables          []astval.Var     `astconf:"setvar,omitempty"`

@@ -81,6 +81,7 @@ func overlayEntityScalars(from, to *Entity) {
 	astoverlay.StringSlice(&from.DirectMediaDeny, &to.DirectMediaDeny)
 	astoverlay.String(&from.Context, &to.Context)
 	astoverlay.String(&from.Host, &to.Host)
+	astoverlay.StringSlice(&from.Transport, &to.Transport)
 	astoverlay.String(&from.Mailbox, &to.Mailbox)
 	astoverlay.String(&from.Secret, &to.Secret)
 	astoverlay.String(&from.Username, &to.Username)

@@ -14,6 +14,7 @@ import (
 // TODO: Add the rest of the possible fields.
 type Entity struct {
 	Username           string           `astconf:"-"`
+	Templates          []string         `astconf:"-"`
 	Type               Type             `astconf:"type"`
 	AccountCode        string           `astconf:"accountcode,omitempty"`
 	Disallow           []string         `astconf:"disallow,omitempty"`
@@ -41,6 +42,11 @@ type Entity struct {
 // SectionName returns the name of the section that the entity belongs to.
 func (e *Entity) SectionName() string {
 	return e.Username
+}
+
+// SectionTemplates returns the section templates used by an entity.
+func (e *Entity) SectionTemplates() []string {
+	return e.Templates
 }
 
 // OverlayEntities returns the overlayed configuration of all the given
@@ -89,6 +95,7 @@ func overlayEntityScalars(from, to *Entity) {
 
 // overlayEntityVectors overlays all vector values in from with values from to.
 func overlayEntityVectors(from, to *Entity) {
+	astoverlay.StringSlice(&from.Templates, &to.Templates)
 	astoverlay.StringSlice(&from.Disallow, &to.Disallow)
 	astoverlay.StringSlice(&from.Allow, &to.Allow)
 	astoverlay.AstVarSlice(&from.Variables, &to.Variables)
@@ -96,6 +103,7 @@ func overlayEntityVectors(from, to *Entity) {
 
 // mergeEntityVectors merges all vector values in from with values from to.
 func mergeEntityVectors(from, to *Entity) {
+	astmerge.StringSlice(&from.Templates, &to.Templates)
 	astmerge.StringSlice(&from.Disallow, &to.Disallow)
 	astmerge.StringSlice(&from.Allow, &to.Allow)
 	astmerge.AstVarSlice(&from.Variables, &to.Variables)

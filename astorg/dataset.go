@@ -103,7 +103,7 @@ func (d *DataSet) Equal(e *DataSet) bool {
 		}
 	}
 	for i := range d.Softphones {
-		if d.Softphones[i] != e.Softphones[i] {
+		if !d.Softphones[i].Equal(&e.Softphones[i]) {
 			return false
 		}
 	}

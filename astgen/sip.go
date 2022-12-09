@@ -39,6 +39,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 		}
 		entity := sip.Entity{
 			Username:  username,
+			Templates: phone.Templates,
 			Secret:    phone.Secret,
 			CallerID:  callerID,
 			Variables: vars,

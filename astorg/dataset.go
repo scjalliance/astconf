@@ -98,7 +98,7 @@ func (d *DataSet) Equal(e *DataSet) bool {
 		}
 	}
 	for i := range d.Phones {
-		if d.Phones[i] != e.Phones[i] {
+		if !d.Phones[i].Equal(&e.Phones[i]) {
 			return false
 		}
 	}

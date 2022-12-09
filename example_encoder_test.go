@@ -46,6 +46,10 @@ func (zk Zookeeper) SectionName() string {
 	return "zookeeper." + zk.Name.SectionName()
 }
 
+func (zk Zookeeper) SectionTemplates() []string {
+	return []string{"senior-management"}
+}
+
 func (*Zookeeper) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 	return e.Printer().Setting("type", "zookeeper")
 }
@@ -93,7 +97,7 @@ func ExampleEncoder() {
 	//     type = zoo
 	// zoo_name = Malarky McFee's Mighty Jungle
 	//
-	// [zookeeper.gershwin_mcfee]
+	// [zookeeper.gershwin_mcfee](senior-management)
 	//             type = zookeeper
 	//   zookeeper_name = Gershwin McFee
 	// experience_level = 8000

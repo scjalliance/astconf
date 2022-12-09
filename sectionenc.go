@@ -18,5 +18,10 @@ func sectionEncoder(v reflect.Value, e *Encoder) error {
 		return nil
 	}
 
-	return e.Printer().Section(name)
+	var templates []string
+	if templater, ok := v.Interface().(SectionTemplater); ok {
+		templates = templater.SectionTemplates()
+	}
+
+	return e.Printer().Section(name, templates...)
 }

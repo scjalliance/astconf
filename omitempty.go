@@ -6,61 +6,42 @@ type omitEmptyEncoder struct {
 	elemEnc encoderFunc
 }
 
-func newOmitEmptyEncoder(t reflect.Type, elemEnc encoderFunc) encoderFunc {
+func newOmitEmptyEncoder(elemEnc encoderFunc) encoderFunc {
 	// TODO: Add support for types implementing the IsZero() interface?
 	//       See: https://github.com/golang/go/issues/4357
 	//            https://github.com/golang/go/issues/11939
 
 	enc := omitEmptyEncoder{elemEnc: elemEnc}
-	switch t.Kind() {
+	return enc.encode
+}
+
+func (oee omitEmptyEncoder) encode(v reflect.Value, e *Encoder) error {
+	if isEmptyValue(v) {
+		return nil
+	}
+	return oee.elemEnc(v, e)
+}
+
+// isEmptyValue reports whether v holds an empty value for the purposes of
+// the omitempty tag option.
+//
+// A pointer is empty when it is nil or when it points to an empty value.
+// Kinds not listed here are never considered empty.
+func isEmptyValue(v reflect.Value) bool {
+	switch v.Kind() {
 	case reflect.Bool:
-		return enc.encodeBool
+		return !v.Bool()
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return enc.encodeInt
+		return v.Int() == 0
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return enc.encodeUint
+		return v.Uint() == 0
 	case reflect.String:
-		return enc.encodeString
+		return v.String() == ""
 	case reflect.Slice:
-		return enc.encodeSlice
+		return v.Len() == 0
 	case reflect.Ptr:
-		return newIndirectEncoder(newOmitEmptyEncoder(t.Elem(), elemEnc))
+		return v.IsNil() || isEmptyValue(v.Elem())
 	default:
-		return elemEnc
+		return false
 	}
-}
-
-func (oee omitEmptyEncoder) encodeBool(v reflect.Value, e *Encoder) error {
-	if v.Bool() == false {
-		return nil
-	}
-	return oee.elemEnc(v, e)
-}
-
-func (oee omitEmptyEncoder) encodeInt(v reflect.Value, e *Encoder) error {
-	if v.Int() == 0 {
-		return nil
-	}
-	return oee.elemEnc(v, e)
-}
-
-func (oee omitEmptyEncoder) encodeUint(v reflect.Value, e *Encoder) error {
-	if v.Uint() == 0 {
-		return nil
-	}
-	return oee.elemEnc(v, e)
-}
-
-func (oee omitEmptyEncoder) encodeString(v reflect.Value, e *Encoder) error {
-	if v.String() == "" {
-		return nil
-	}
-	return oee.elemEnc(v, e)
-}
-
-func (oee omitEmptyEncoder) encodeSlice(v reflect.Value, e *Encoder) error {
-	if v.Len() == 0 {
-		return nil
-	}
-	return oee.elemEnc(v, e)
 }

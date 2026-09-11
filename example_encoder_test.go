@@ -57,8 +57,7 @@ func (*Zookeeper) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 type Zoo struct {
 	Name        Name `astconf:"zoo_name"`
 	Maintainers []Zookeeper
-	//Maintainers []*Zookeeper // FIXME: This use of a slice of references breaks the marshaler and causes the test to fail
-	Elephants []Elephant
+	Elephants   []Elephant
 }
 
 func (zoo *Zoo) SectionName() string {

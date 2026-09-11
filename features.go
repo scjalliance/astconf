@@ -153,10 +153,10 @@ func typeFeatures(t reflect.Type) (features typeFeature) {
 		// Pointers are considered blocks if their elements are, unless
 		// they perform their own marshaling.
 		elemFeatures := typeFeatures(t.Elem())
-		if !features.Marshaler() && !elemFeatures.Block() {
+		if !features.Marshaler() && elemFeatures.Block() {
 			features |= tfBlock
 		}
-		if !features.Marshaler() && !features.MarshalerAddr() && !elemFeatures.Block() && !elemFeatures.BlockAddr() {
+		if !features.Marshaler() && !features.MarshalerAddr() && elemFeatures.BlockAddr() {
 			features |= tfBlockAddr
 		}
 	}

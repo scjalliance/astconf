@@ -25,7 +25,10 @@ func (oee omitEmptyEncoder) encode(v reflect.Value, e *Encoder) error {
 // isEmptyValue reports whether v holds an empty value for the purposes of
 // the omitempty tag option.
 //
-// A pointer is empty when it is nil or when it points to an empty value.
+// A nil pointer is empty. A non-nil pointer is never empty, even when it
+// points to a zero value, so that a pointer field can express an explicit
+// zero. This matches encoding/json.
+//
 // Kinds not listed here are never considered empty.
 func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
@@ -40,7 +43,7 @@ func isEmptyValue(v reflect.Value) bool {
 	case reflect.Slice:
 		return v.Len() == 0
 	case reflect.Ptr:
-		return v.IsNil() || isEmptyValue(v.Elem())
+		return v.IsNil()
 	default:
 		return false
 	}

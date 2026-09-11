@@ -333,9 +333,9 @@ func TestMarshalPointerFields(t *testing.T) {
 				"value = v\n",
 		},
 		{
-			name:  "omitempty applies to the pointed-to value",
+			name:  "omitempty keeps a non-nil pointer to a zero value",
 			value: pointers{Int: &zero, OptInt: &zero},
-			want:  "int = 0\n",
+			want:  "int = 0\noptint = 0\n",
 		},
 	}
 	for _, tt := range tests {

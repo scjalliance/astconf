@@ -19,6 +19,15 @@ func (exten Extension) MarshalAsterisk(e *astconf.Encoder) error {
 		return nil
 	}
 
+	if err := errorIfAny("extension number", exten.Number, invalidExtensionChars); err != nil {
+		return err
+	}
+	for _, action := range exten.Actions {
+		if err := validate(action); err != nil {
+			return err
+		}
+	}
+
 	p := e.Printer()
 
 	// Extensions typically are multi-line, so we give them some space

@@ -27,3 +27,11 @@ func (app SetApp) App() AppCall {
 		Args: []string{fmt.Sprintf("%s=%s", app.Name.Ref(), app.Value.Expr().String())},
 	}
 }
+
+// Validate returns an error if the name or value is invalid.
+func (app SetApp) Validate() error {
+	if err := validate(app.Name); err != nil {
+		return err
+	}
+	return validate(app.Value)
+}

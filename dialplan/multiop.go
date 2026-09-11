@@ -40,3 +40,13 @@ func And(e1 Expression, e2 Expression, extra ...Expression) MultiOp {
 		Operator:    "&",
 	}
 }
+
+// Validate returns an error if any operand is invalid.
+func (op MultiOp) Validate() error {
+	for _, expr := range op.Expressions {
+		if err := validate(expr); err != nil {
+			return err
+		}
+	}
+	return nil
+}

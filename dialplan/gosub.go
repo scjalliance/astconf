@@ -37,3 +37,20 @@ func (gosub GosubApp) App() AppCall {
 	app.Args = append(app.Args, gosub.Args...)
 	return app
 }
+
+// Validate returns an error if the context, extension or any argument
+// contains invalid characters.
+func (gosub GosubApp) Validate() error {
+	if err := errorIfAny("gosub context", gosub.Context, invalidArgChars); err != nil {
+		return err
+	}
+	if err := errorIfAny("gosub extension", gosub.Extension, invalidArgChars); err != nil {
+		return err
+	}
+	for _, arg := range gosub.Args {
+		if err := errorIfAny("gosub argument", arg, invalidArgChars); err != nil {
+			return err
+		}
+	}
+	return nil
+}

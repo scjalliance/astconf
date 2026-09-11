@@ -53,3 +53,11 @@ func LessThanOrEqual(e1 Expression, e2 Expression) BinaryOp {
 func NotEqual(e1 Expression, e2 Expression) BinaryOp {
 	return BinaryOp{E1: e1, E2: e2, Operator: "!="}
 }
+
+// Validate returns an error if either operand is invalid.
+func (op BinaryOp) Validate() error {
+	if err := validate(op.E1); err != nil {
+		return err
+	}
+	return validate(op.E2)
+}

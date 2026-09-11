@@ -20,3 +20,9 @@ func PJSIP(resource string) Device {
 func SIP(resource string) Device {
 	return Device{Technology: "SIP", Resource: resource}
 }
+
+// Validate returns an error if the device resource contains characters
+// that would change the meaning of a dial string.
+func (d Device) Validate() error {
+	return errorIfAny("device resource", d.Resource, invalidResourceChars)
+}

@@ -48,7 +48,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 				vars = append(vars, astval.NewVar("OUTBOUND_CALLERID", loc.CallerID))
 				vars = append(vars, astval.NewVar("AREACODE", loc.AreaCode))
 				if loc.Abbreviation != "" {
-					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", loc.Abbreviation, strings.ToUpper(phone.MAC))
+					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", callerIDName(loc.Abbreviation), strings.ToUpper(phone.MAC))
 				}
 			}
 		}
@@ -73,7 +73,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 				vars = append(vars, astval.NewVar("OUTBOUND_CALLERID", loc.CallerID))
 				vars = append(vars, astval.NewVar("AREACODE", loc.AreaCode))
 				if loc.Abbreviation != "" {
-					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", loc.Abbreviation, phone.Username)
+					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", callerIDName(loc.Abbreviation), phone.Username)
 				}
 			}
 		}
@@ -113,7 +113,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 			}
 			endpoint := pjsip.Endpoint{
 				Name:      username,
-				CallerID:  fmt.Sprintf("\"%s\" <%s>", person.FullName, person.Extension),
+				CallerID:  fmt.Sprintf("\"%s\" <%s>", callerIDName(person.FullName), person.Extension),
 				Mailboxes: []string{fmt.Sprintf("%s@%s", person.Extension, context)},
 				Variables: vars,
 			}
@@ -126,7 +126,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 			}
 			endpoint := pjsip.Endpoint{
 				Name:      username,
-				CallerID:  fmt.Sprintf("\"%s\" <%s>", person.FullName, person.Extension),
+				CallerID:  fmt.Sprintf("\"%s\" <%s>", callerIDName(person.FullName), person.Extension),
 				Variables: vars,
 			}
 			m.Merge(endpoint)
@@ -143,7 +143,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 			}
 			endpoint := pjsip.Endpoint{
 				Name:     username,
-				CallerID: fmt.Sprintf("\"%s\" <%s>", role.DisplayName, role.Extension),
+				CallerID: fmt.Sprintf("\"%s\" <%s>", callerIDName(role.DisplayName), role.Extension),
 			}
 			if role.MailboxNumber != "" {
 				endpoint.Mailboxes = []string{fmt.Sprintf("%s@%s", role.MailboxNumber, context)}
@@ -157,7 +157,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 			}
 			endpoint := pjsip.Endpoint{
 				Name:     username,
-				CallerID: fmt.Sprintf("\"%s\" <%s>", role.DisplayName, role.Extension),
+				CallerID: fmt.Sprintf("\"%s\" <%s>", callerIDName(role.DisplayName), role.Extension),
 			}
 			m.Merge(endpoint)
 			softphoneComplete[username] = true

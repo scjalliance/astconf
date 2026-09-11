@@ -33,7 +33,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				vars = append(vars, astval.NewVar("OUTBOUND_CALLERID", loc.CallerID))
 				vars = append(vars, astval.NewVar("AREACODE", loc.AreaCode))
 				if loc.Abbreviation != "" {
-					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", loc.Abbreviation, strings.ToUpper(phone.MAC))
+					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", callerIDName(loc.Abbreviation), strings.ToUpper(phone.MAC))
 				}
 			}
 		}
@@ -57,7 +57,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				vars = append(vars, astval.NewVar("OUTBOUND_CALLERID", loc.CallerID))
 				vars = append(vars, astval.NewVar("AREACODE", loc.AreaCode))
 				if loc.Abbreviation != "" {
-					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", loc.Abbreviation, phone.Username)
+					callerID = fmt.Sprintf("\"%s-%s\" <UNAVAILABLE>", callerIDName(loc.Abbreviation), phone.Username)
 				}
 			}
 		}
@@ -96,7 +96,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 			}
 			entity := sip.Entity{
 				Username:  username,
-				CallerID:  fmt.Sprintf("\"%s\" <%s>", person.FullName, person.Extension),
+				CallerID:  fmt.Sprintf("\"%s\" <%s>", callerIDName(person.FullName), person.Extension),
 				Mailbox:   fmt.Sprintf("%s@%s", person.Extension, context),
 				Variables: vars,
 			}
@@ -109,7 +109,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 			}
 			entity := sip.Entity{
 				Username:  username,
-				CallerID:  fmt.Sprintf("\"%s\" <%s>", person.FullName, person.Extension),
+				CallerID:  fmt.Sprintf("\"%s\" <%s>", callerIDName(person.FullName), person.Extension),
 				Variables: vars,
 			}
 			m.Merge(entity)
@@ -126,7 +126,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 			}
 			entity := sip.Entity{
 				Username: username,
-				CallerID: fmt.Sprintf("\"%s\" <%s>", role.DisplayName, role.Extension),
+				CallerID: fmt.Sprintf("\"%s\" <%s>", callerIDName(role.DisplayName), role.Extension),
 			}
 			if role.MailboxNumber != "" {
 				entity.Mailbox = fmt.Sprintf("%s@%s", role.MailboxNumber, context)
@@ -140,7 +140,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 			}
 			entity := sip.Entity{
 				Username: username,
-				CallerID: fmt.Sprintf("\"%s\" <%s>", role.DisplayName, role.Extension),
+				CallerID: fmt.Sprintf("\"%s\" <%s>", callerIDName(role.DisplayName), role.Extension),
 			}
 			m.Merge(entity)
 			softphoneComplete[username] = true

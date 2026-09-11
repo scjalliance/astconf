@@ -51,8 +51,6 @@ func (m *AuthMap) Add(auth Auth) bool {
 // Overlay adds an auth to the map. If the map already contains an entry
 // with the auth's name, the entries are overlayed, with priority given
 // to the new entry.
-//
-// Auth has no vector values, so there is no Merge method.
 func (m *AuthMap) Overlay(auth Auth) {
 	if m.lookup == nil {
 		m.lookup = make(map[string]int)
@@ -91,4 +89,26 @@ func (m *AuthMap) Auth(name string) (auth Auth, ok bool) {
 // Auths returns a slice of all auths in the map.
 func (m *AuthMap) Auths() []Auth {
 	return m.auths
+}
+
+// Merge adds an auth to the map. If the map already contains an entry
+// with the auth's name, the entries are merged.
+func (m *AuthMap) Merge(auth Auth) {
+	if m.lookup == nil {
+		m.lookup = make(map[string]int)
+	}
+
+	name := strings.ToLower(auth.Name)
+
+	index, exists := m.lookup[name]
+	if exists {
+		m.auths[index] = MergeAuths(m.auths[index], auth)
+		return
+	}
+
+	m.auths = append(m.auths, auth)
+	index = len(m.auths) - 1
+	if name != "" {
+		m.lookup[name] = index
+	}
 }

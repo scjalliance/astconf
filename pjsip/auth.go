@@ -2,6 +2,7 @@ package pjsip
 
 import (
 	"github.com/scjalliance/astconf"
+	"github.com/scjalliance/astconf/astmerge"
 	"github.com/scjalliance/astconf/astoverlay"
 )
 
@@ -39,14 +40,38 @@ func (auth *Auth) MarshalAsteriskPreamble(e *astconf.Encoder) error {
 // auths, in order of priority from least to greatest.
 func OverlayAuths(auths ...Auth) (overlayed Auth) {
 	for i := range auths {
-		auth := &auths[i]
-		astoverlay.String(&auth.Name, &overlayed.Name)
-		astoverlay.StringSlice(&auth.Templates, &overlayed.Templates)
-		astoverlay.String(&auth.AuthType, &overlayed.AuthType)
-		astoverlay.String(&auth.Username, &overlayed.Username)
-		astoverlay.String(&auth.Password, &overlayed.Password)
-		astoverlay.String(&auth.MD5Cred, &overlayed.MD5Cred)
-		astoverlay.String(&auth.Realm, &overlayed.Realm)
+		overlayAuthScalars(&auths[i], &overlayed)
+		overlayAuthVectors(&auths[i], &overlayed)
 	}
 	return
+}
+
+// MergeAuths returns the merged configuration of all the given auths,
+// in order of priority from least to greatest.
+func MergeAuths(auths ...Auth) (merged Auth) {
+	for i := range auths {
+		overlayAuthScalars(&auths[i], &merged)
+		mergeAuthVectors(&auths[i], &merged)
+	}
+	return
+}
+
+// overlayAuthScalars overlays all scalar values in from with values from to.
+func overlayAuthScalars(from, to *Auth) {
+	astoverlay.String(&from.Name, &to.Name)
+	astoverlay.String(&from.AuthType, &to.AuthType)
+	astoverlay.String(&from.Username, &to.Username)
+	astoverlay.String(&from.Password, &to.Password)
+	astoverlay.String(&from.MD5Cred, &to.MD5Cred)
+	astoverlay.String(&from.Realm, &to.Realm)
+}
+
+// overlayAuthVectors overlays all vector values in from with values from to.
+func overlayAuthVectors(from, to *Auth) {
+	astoverlay.StringSlice(&from.Templates, &to.Templates)
+}
+
+// mergeAuthVectors merges all vector values in from with values from to.
+func mergeAuthVectors(from, to *Auth) {
+	astmerge.StringSlice(&from.Templates, &to.Templates)
 }

@@ -71,3 +71,31 @@ func TestAuthMap(t *testing.T) {
 		t.Errorf("Auths() order = %v, want %v", names, want)
 	}
 }
+
+func TestMergeAuths(t *testing.T) {
+	base := pjsip.Auth{Templates: []string{"base"}, AuthType: "userpass"}
+	override := pjsip.Auth{Name: "100-auth", Templates: []string{"phone"}, Username: "100"}
+	got := pjsip.MergeAuths(base, override)
+	want := pjsip.Auth{
+		Name:      "100-auth",
+		Templates: []string{"phone", "base"}, // Higher priority values come first
+		AuthType:  "userpass",
+		Username:  "100",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("MergeAuths() =\n%+v\nwant:\n%+v", got, want)
+	}
+}
+
+func TestAuthMapMerge(t *testing.T) {
+	var m pjsip.AuthMap
+	m.Add(pjsip.Auth{Name: "100-auth", Templates: []string{"a"}, Username: "100"})
+	m.Merge(pjsip.Auth{Name: "100-auth", Templates: []string{"b"}, Password: "secret"})
+	if a, _ := m.Auth("100-auth"); a.Username != "100" || a.Password != "secret" || !reflect.DeepEqual(a.Templates, []string{"b", "a"}) {
+		t.Errorf("Merge() produced %+v", a)
+	}
+	m.Merge(pjsip.Auth{Name: "200-auth"})
+	if len(m.Auths()) != 2 {
+		t.Errorf("Merge() of a new name produced %d auths, want 2", len(m.Auths()))
+	}
+}

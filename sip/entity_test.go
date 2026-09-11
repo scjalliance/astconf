@@ -132,9 +132,6 @@ func TestEntityMap(t *testing.T) {
 	if !m.Contains("100") {
 		t.Error("Contains() = false after Add()")
 	}
-	if !m.Contains("100") || !m.Contains("100") {
-		t.Error("Contains() is not case-insensitive")
-	}
 	if e, ok := m.Entity("100"); !ok || e.Context != "a" {
 		t.Errorf("Entity() = %+v, %v; want context a", e, ok)
 	}

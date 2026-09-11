@@ -378,3 +378,76 @@ func TestMarshalSliceOfPointers(t *testing.T) {
 		t.Errorf("Marshal() =\n%s\nwant:\n%s", got, want)
 	}
 }
+
+// bracketed is a section type whose name and templates come from its fields.
+type bracketed struct {
+	Name      string   `astconf:"-"`
+	Templates []string `astconf:"-"`
+	Value     string   `astconf:"value"`
+}
+
+func (b *bracketed) SectionName() string        { return b.Name }
+func (b *bracketed) SectionTemplates() []string { return b.Templates }
+
+// newliner is a SettingMarshaler that writes a newline in its value.
+type newliner struct{}
+
+func (newliner) MarshalAsteriskSetting(w io.Writer) error {
+	_, err := w.Write([]byte("a\nb"))
+	return err
+}
+
+func TestMarshalInvalidContent(t *testing.T) {
+	tests := []struct {
+		name  string
+		value interface{}
+	}{
+		{name: "newline in value", value: scalars{Str: "a\nb"}},
+		{name: "carriage return in value", value: scalars{Str: "a\rb"}},
+		{name: "newline in multi-valued element", value: multi{Allow: []string{"ulaw", "a\nb"}}},
+		{name: "newline in commaseparated element", value: multi{Codecs: []string{"a\nb"}}},
+		{name: "newline in object value", value: multi{Exten: []string{"100,1,Noop()\nexten => 200,1,Noop()"}}},
+		{name: "newline from setting marshaler", value: struct {
+			N newliner `astconf:"n"`
+		}{}},
+		{name: "newline in section name", value: &bracketed{Name: "a\nb"}},
+		{name: "bracket in section name", value: &bracketed{Name: "a]\n[b"}},
+		{name: "paren in section name", value: &bracketed{Name: "a(b)"}},
+		{name: "newline in template", value: &bracketed{Name: "a", Templates: []string{"t\n"}}},
+		{name: "paren in template", value: &bracketed{Name: "a", Templates: []string{"t)"}}},
+		{name: "comma in template", value: &bracketed{Name: "a", Templates: []string{"t,u"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := astconf.Marshal(tt.value)
+			var ice astconf.InvalidContentError
+			if !errors.As(err, &ice) {
+				t.Fatalf("Marshal() error = %v, want InvalidContentError", err)
+			}
+			if ice.Error() == "" {
+				t.Error("InvalidContentError.Error() is empty")
+			}
+		})
+	}
+}
+
+func TestMarshalEscapesSemicolon(t *testing.T) {
+	// An unescaped semicolon starts a comment in asterisk configuration
+	// files, so semicolons in values are escaped.
+	value := struct {
+		Str   string   `astconf:"str"`
+		Exten []string `astconf:"exten,object"`
+	}{
+		Str:   "Smith; Jones",
+		Exten: []string{"100,1,Noop(a;b)"},
+	}
+	got, err := astconf.Marshal(value)
+	if err != nil {
+		t.Fatalf("Marshal() error: %v", err)
+	}
+	want := "str = Smith\\; Jones\n" +
+		"exten => 100,1,Noop(a\\;b)\n"
+	if string(got) != want {
+		t.Errorf("Marshal() =\n%s\nwant:\n%s", got, want)
+	}
+}

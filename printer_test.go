@@ -2,6 +2,7 @@ package astconf_test
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/scjalliance/astconf"
@@ -74,5 +75,63 @@ func TestPrinterAlignment(t *testing.T) {
 				t.Errorf("Setting() = %q, want %q", buf.String(), tt.want)
 			}
 		})
+	}
+}
+
+func TestPrinterInvalidContent(t *testing.T) {
+	var buf bytes.Buffer
+	p := astconf.NewPrinter(&buf)
+	tests := []struct {
+		name string
+		call func() error
+	}{
+		{name: "newline in setting name", call: func() error { return p.Setting("a\nb", "v") }},
+		{name: "equals in setting name", call: func() error { return p.Setting("a=b", "v") }},
+		{name: "newline in setting value", call: func() error { return p.Setting("a", "v\n") }},
+		{name: "newline in object name", call: func() error { return p.Object("a\nb", "v") }},
+		{name: "newline in object value", call: func() error { return p.Object("a", "v\n") }},
+		{name: "newline in section", call: func() error { return p.Section("a\nb") }},
+		{name: "bracket in section", call: func() error { return p.Section("a]b") }},
+		{name: "newline in template", call: func() error { return p.Section("a", "t\n") }},
+		{name: "comma in template", call: func() error { return p.Section("a", "t,u") }},
+		{name: "newline in comment", call: func() error { return p.Comment("a\nb") }},
+		{name: "newline in include", call: func() error { return p.Include("a\nb") }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf.Reset()
+			err := tt.call()
+			var ice astconf.InvalidContentError
+			if !errors.As(err, &ice) {
+				t.Fatalf("error = %v, want InvalidContentError", err)
+			}
+			if buf.Len() != 0 {
+				t.Errorf("wrote %q before returning the error", buf.String())
+			}
+		})
+	}
+}
+
+func TestPrinterEscapesSemicolon(t *testing.T) {
+	var buf bytes.Buffer
+	p := astconf.NewPrinter(&buf)
+	if err := p.Setting("callerid", "\"Smith; Jones\" <100>"); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Object("exten", "100,1,Noop(a;b)"); err != nil {
+		t.Fatal(err)
+	}
+	want := "callerid = \"Smith\\; Jones\" <100>\n" +
+		"exten => 100,1,Noop(a\\;b)\n"
+	if buf.String() != want {
+		t.Errorf("wrote\n%s\nwant:\n%s", buf.String(), want)
+	}
+}
+
+func TestInvalidContentErrorMessage(t *testing.T) {
+	err := astconf.NewPrinter(&bytes.Buffer{}).Setting("a", "line one\nline two")
+	want := "asterisk configuration value \"line one\\nline two\" contains a newline"
+	if err == nil || err.Error() != want {
+		t.Errorf("error = %q, want %q", err, want)
 	}
 }

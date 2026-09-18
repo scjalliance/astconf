@@ -28,12 +28,17 @@ var (
 // Characters that cannot appear in each component of a configuration file.
 // Newlines would start a new line, brackets and parentheses would be read
 // as section headers, and an equals sign would end a setting name early.
+//
+// A semicolon begins a comment, so everything after one is discarded. Values
+// are exempt because they are escaped on the way out, and comments are exempt
+// because a semicolon inside one is harmless.
 const (
-	invalidNameChars     = "\r\n=[]"
+	invalidNameChars     = "\r\n=[];"
 	invalidValueChars    = "\r\n"
-	invalidSectionChars  = "\r\n[]()"
-	invalidTemplateChars = "\r\n[](),"
+	invalidSectionChars  = "\r\n[]();"
+	invalidTemplateChars = "\r\n[](),;"
 	invalidCommentChars  = "\r\n"
+	invalidPathChars     = "\r\n;"
 )
 
 // Printer is capable of printing asterisk configuration data to an
@@ -59,7 +64,7 @@ func NewPrinter(w io.Writer) *Printer {
 
 // Include will print a file include construct to p.Writer for the given path.
 func (p *Printer) Include(path string) error {
-	if err := errorIfAny("include path", path, invalidCommentChars); err != nil {
+	if err := errorIfAny("include path", path, invalidPathChars); err != nil {
 		return err
 	}
 	wg := writegroup{Writer: p.Writer}

@@ -96,6 +96,12 @@ func TestPrinterInvalidContent(t *testing.T) {
 		{name: "comma in template", call: func() error { return p.Section("a", "t,u") }},
 		{name: "newline in comment", call: func() error { return p.Comment("a\nb") }},
 		{name: "newline in include", call: func() error { return p.Include("a\nb") }},
+		{name: "semicolon in setting name", call: func() error { return p.Setting("a;b", "v") }},
+		{name: "semicolon in object name", call: func() error { return p.Object("a;b", "v") }},
+		{name: "semicolon in section", call: func() error { return p.Section("a;b") }},
+		{name: "semicolon in template", call: func() error { return p.Section("a", "t;u") }},
+		{name: "semicolon in include", call: func() error { return p.Include("a;b") }},
+		{name: "semicolon in field name", call: func() error { return p.Start("a;b", " = ") }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

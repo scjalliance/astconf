@@ -93,7 +93,13 @@ func (p *Printer) Break() {
 
 // Start begins a new field by writing its name and optional
 // separator.
+//
+// An InvalidContentError will be returned if the name contains an
+// invalid character.
 func (p *Printer) Start(name string, sep string) error {
+	if err := errorIfAny("field name", name, invalidNameChars); err != nil {
+		return err
+	}
 	return p.start([]byte(name), []byte(sep))
 }
 

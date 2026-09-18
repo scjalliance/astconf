@@ -94,7 +94,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 		vars = append(vars, astval.NewVar("USERNAME", person.Username))
 		for _, mac := range person.Phones {
 			username := lineUsername(mac, lookup)
-			if !m.Contains(username) || phoneComplete[mac] {
+			if !m.Contains(username) || phoneComplete[strings.ToLower(mac)] {
 				continue
 			}
 			entity := sip.Entity{
@@ -104,7 +104,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				Variables: vars,
 			}
 			m.Merge(entity)
-			phoneComplete[mac] = true
+			phoneComplete[strings.ToLower(mac)] = true
 		}
 		for _, username := range person.Softphones {
 			if !m.Contains(username) || softphoneComplete[strings.ToLower(username)] {
@@ -124,7 +124,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 	for _, role := range data.PhoneRoles {
 		for _, mac := range role.Phones {
 			username := lineUsername(mac, lookup)
-			if !m.Contains(username) || phoneComplete[mac] {
+			if !m.Contains(username) || phoneComplete[strings.ToLower(mac)] {
 				continue
 			}
 			entity := sip.Entity{
@@ -135,7 +135,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				entity.Mailbox = fmt.Sprintf("%s@%s", role.MailboxNumber, context)
 			}
 			m.Merge(entity)
-			phoneComplete[mac] = true
+			phoneComplete[strings.ToLower(mac)] = true
 		}
 		for _, username := range role.Softphones {
 			if !m.Contains(username) || softphoneComplete[strings.ToLower(username)] {

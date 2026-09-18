@@ -111,7 +111,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 		vars = append(vars, astval.NewVar("USERNAME", person.Username))
 		for _, mac := range person.Phones {
 			username := lineUsername(mac, lookup)
-			if !m.Contains(username) || phoneComplete[mac] {
+			if !m.Contains(username) || phoneComplete[strings.ToLower(mac)] {
 				continue
 			}
 			endpoint := pjsip.Endpoint{
@@ -121,7 +121,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 				Variables: vars,
 			}
 			m.Merge(endpoint)
-			phoneComplete[mac] = true
+			phoneComplete[strings.ToLower(mac)] = true
 		}
 		for _, username := range person.Softphones {
 			if !m.Contains(username) || softphoneComplete[strings.ToLower(username)] {
@@ -141,7 +141,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 	for _, role := range data.PhoneRoles {
 		for _, mac := range role.Phones {
 			username := lineUsername(mac, lookup)
-			if !m.Contains(username) || phoneComplete[mac] {
+			if !m.Contains(username) || phoneComplete[strings.ToLower(mac)] {
 				continue
 			}
 			endpoint := pjsip.Endpoint{
@@ -152,7 +152,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 				endpoint.Mailboxes = []string{fmt.Sprintf("%s@%s", role.MailboxNumber, context)}
 			}
 			m.Merge(endpoint)
-			phoneComplete[mac] = true
+			phoneComplete[strings.ToLower(mac)] = true
 		}
 		for _, username := range role.Softphones {
 			if !m.Contains(username) || softphoneComplete[strings.ToLower(username)] {

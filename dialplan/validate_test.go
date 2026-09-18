@@ -117,6 +117,8 @@ func TestInvalidDialplanOperators(t *testing.T) {
 		{name: "paren in logical operator", action: ExecIf(MultiOp{Expressions: []Expression{Equal(Int(1), Int(1)), Equal(Int(2), Int(2))}, Operator: "|("}, Noop("ok"))},
 		{name: "comma in dial device technology", action: Dial(Device{Technology: "SIP,Local", Resource: "100"}, 20)},
 		{name: "slash in dial device technology", action: Dial(Device{Technology: "SIP/x", Resource: "100"}, 20)},
+		{name: "quote in operand of a quoted comparison", action: ExecIf(Equal(CallerID("num"), String(`a"b`)), Noop("ok"))},
+		{name: "quote in operand against presence state", action: ExecIf(Equal(PresenceState("hint:100", "subtype"), String(`a"b`)), Noop("ok"))},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

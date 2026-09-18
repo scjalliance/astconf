@@ -107,7 +107,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 			phoneComplete[mac] = true
 		}
 		for _, username := range person.Softphones {
-			if !m.Contains(username) || softphoneComplete[username] {
+			if !m.Contains(username) || softphoneComplete[strings.ToLower(username)] {
 				continue
 			}
 			entity := sip.Entity{
@@ -116,7 +116,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				Variables: vars,
 			}
 			m.Merge(entity)
-			softphoneComplete[username] = true
+			softphoneComplete[strings.ToLower(username)] = true
 		}
 	}
 
@@ -138,7 +138,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 			phoneComplete[mac] = true
 		}
 		for _, username := range role.Softphones {
-			if !m.Contains(username) || softphoneComplete[username] {
+			if !m.Contains(username) || softphoneComplete[strings.ToLower(username)] {
 				continue
 			}
 			entity := sip.Entity{
@@ -146,7 +146,7 @@ func SIP(data *astorg.DataSet, base sip.Entity, context string) []sip.Entity {
 				CallerID: fmt.Sprintf("\"%s\" <%s>", callerIDName(role.DisplayName), role.Extension),
 			}
 			m.Merge(entity)
-			softphoneComplete[username] = true
+			softphoneComplete[strings.ToLower(username)] = true
 		}
 	}
 

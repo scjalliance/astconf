@@ -124,7 +124,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 			phoneComplete[mac] = true
 		}
 		for _, username := range person.Softphones {
-			if !m.Contains(username) || softphoneComplete[username] {
+			if !m.Contains(username) || softphoneComplete[strings.ToLower(username)] {
 				continue
 			}
 			endpoint := pjsip.Endpoint{
@@ -133,7 +133,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 				Variables: vars,
 			}
 			m.Merge(endpoint)
-			softphoneComplete[username] = true
+			softphoneComplete[strings.ToLower(username)] = true
 		}
 	}
 
@@ -155,7 +155,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 			phoneComplete[mac] = true
 		}
 		for _, username := range role.Softphones {
-			if !m.Contains(username) || softphoneComplete[username] {
+			if !m.Contains(username) || softphoneComplete[strings.ToLower(username)] {
 				continue
 			}
 			endpoint := pjsip.Endpoint{
@@ -163,7 +163,7 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 				CallerID: fmt.Sprintf("\"%s\" <%s>", callerIDName(role.DisplayName), role.Extension),
 			}
 			m.Merge(endpoint)
-			softphoneComplete[username] = true
+			softphoneComplete[strings.ToLower(username)] = true
 		}
 	}
 

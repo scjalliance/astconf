@@ -7,6 +7,7 @@ import (
 	"github.com/scjalliance/astconf/astorg"
 	"github.com/scjalliance/astconf/astval"
 	"github.com/scjalliance/astconf/pjsip"
+	"github.com/scjalliance/astconf/sip"
 )
 
 func TestEndpoints(t *testing.T) {
@@ -197,5 +198,8 @@ func TestSoftphoneWithoutUsername(t *testing.T) {
 	}
 	if got := astgen.AORs(data, pjsip.AOR{}); len(got) != 0 {
 		t.Errorf("AORs() returned %d entries for an unnamed softphone, want 0", len(got))
+	}
+	if got := astgen.SIP(data, sip.Entity{}, "default"); len(got) != 0 {
+		t.Errorf("SIP() returned %d entries for an unnamed softphone, want 0", len(got))
 	}
 }

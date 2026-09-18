@@ -35,7 +35,9 @@ func (exten Extension) MarshalAsterisk(e *astconf.Encoder) error {
 
 	// If the extension has a comment we'll print it
 	if exten.Comment != "" {
-		p.Comment(exten.Comment)
+		if err := p.Comment(exten.Comment); err != nil {
+			return err
+		}
 	}
 
 	// Print each of the actions in the extension

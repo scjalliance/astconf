@@ -21,8 +21,11 @@ func SIP(resource string) Device {
 	return Device{Technology: "SIP", Resource: resource}
 }
 
-// Validate returns an error if the device resource contains characters
-// that would change the meaning of a dial string.
+// Validate returns an error if the device technology or resource contains
+// characters that would change the meaning of a dial string.
 func (d Device) Validate() error {
+	if err := errorIfAny("device technology", d.Technology, invalidResourceChars); err != nil {
+		return err
+	}
 	return errorIfAny("device resource", d.Resource, invalidResourceChars)
 }

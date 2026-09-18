@@ -24,6 +24,7 @@ const (
 	invalidExtensionChars = ",()$"     // Extension patterns use brackets
 	invalidResourceChars  = ",()$[]&/" // & separates devices and / separates resource parts
 	invalidFileChars      = ",()$[]&"  // & separates files
+	invalidOperatorChars  = ",()$[]\"" // Operands are quoted, so a quote ends one early
 )
 
 func errorIfAny(component, value, badChars string) error {

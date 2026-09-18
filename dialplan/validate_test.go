@@ -103,3 +103,50 @@ func TestDeviceValidate(t *testing.T) {
 		}
 	}
 }
+
+// TestInvalidDialplanOperators covers the operator and technology fields,
+// which are rendered into a line but were not validated alongside the
+// operands and resources next to them.
+func TestInvalidDialplanOperators(t *testing.T) {
+	tests := []struct {
+		name   string
+		action Action
+	}{
+		{name: "quote in binary operator", action: ExecIf(BinaryOp{E1: Int(1), E2: Int(1), Operator: "=\""}, Noop("ok"))},
+		{name: "paren in binary operator", action: ExecIf(BinaryOp{E1: Int(1), E2: Int(1), Operator: "=)"}, Noop("ok"))},
+		{name: "paren in logical operator", action: ExecIf(MultiOp{Expressions: []Expression{Equal(Int(1), Int(1)), Equal(Int(2), Int(2))}, Operator: "|("}, Noop("ok"))},
+		{name: "comma in dial device technology", action: Dial(Device{Technology: "SIP,Local", Resource: "100"}, 20)},
+		{name: "slash in dial device technology", action: Dial(Device{Technology: "SIP/x", Resource: "100"}, 20)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := marshalExtension("100", tt.action)
+			var ice astconf.InvalidContentError
+			if !errors.As(err, &ice) {
+				t.Fatalf("Marshal() error = %v, want InvalidContentError", err)
+			}
+		})
+	}
+}
+
+// TestDialplanStructuralValidation covers the two cases that are wrong by
+// shape rather than by character. Both previously reached rendering, and the
+// operand count panicked there.
+func TestDialplanStructuralValidation(t *testing.T) {
+	tests := []struct {
+		name   string
+		action Action
+	}{
+		{name: "gosub priority below one", action: Gosub("ctx", "s", 0)},
+		{name: "negative gosub priority", action: Gosub("ctx", "s", -1)},
+		{name: "logical operator with no operands", action: ExecIf(MultiOp{Operator: "|"}, Noop("ok"))},
+		{name: "logical operator with one operand", action: ExecIf(MultiOp{Expressions: []Expression{Equal(Int(1), Int(1))}, Operator: "|"}, Noop("ok"))},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := marshalExtension("100", tt.action); err == nil {
+				t.Fatal("Marshal() error = nil, want an error")
+			}
+		})
+	}
+}

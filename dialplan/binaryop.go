@@ -54,8 +54,11 @@ func NotEqual(e1 Expression, e2 Expression) BinaryOp {
 	return BinaryOp{E1: e1, E2: e2, Operator: "!="}
 }
 
-// Validate returns an error if either operand is invalid.
+// Validate returns an error if the operator or either operand is invalid.
 func (op BinaryOp) Validate() error {
+	if err := errorIfAny("binary operator", op.Operator, invalidOperatorChars); err != nil {
+		return err
+	}
 	if err := validate(op.E1); err != nil {
 		return err
 	}

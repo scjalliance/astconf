@@ -1,5 +1,7 @@
 package dialplan
 
+import "fmt"
+
 // BinaryOp is a binary operation on two expressions.
 type BinaryOp struct {
 	E1       Expression
@@ -64,6 +66,9 @@ func NotEqual(e1 Expression, e2 Expression) BinaryOp {
 // rejected here rather than in the operand's own validation, where a quote is
 // harmless outside a quoted comparison.
 func (op BinaryOp) Validate() error {
+	if op.Operator == "" {
+		return fmt.Errorf("a binary operation needs an operator")
+	}
 	if err := errorIfAny("binary operator", op.Operator, invalidOperatorChars); err != nil {
 		return err
 	}

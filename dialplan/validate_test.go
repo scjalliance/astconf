@@ -141,6 +141,8 @@ func TestDialplanStructuralValidation(t *testing.T) {
 		action Action
 	}{
 		{name: "gosub priority below one", action: Gosub("ctx", "s", 0)},
+		{name: "empty binary operator", action: ExecIf(BinaryOp{E1: Int(1), E2: Int(1)}, Noop("ok"))},
+		{name: "empty logical operator", action: ExecIf(MultiOp{Expressions: []Expression{Equal(Int(1), Int(1)), Equal(Int(2), Int(2))}}, Noop("ok"))},
 		{name: "negative gosub priority", action: Gosub("ctx", "s", -1)},
 		{name: "logical operator with no operands", action: ExecIf(MultiOp{Operator: "|"}, Noop("ok"))},
 		{name: "logical operator with one operand", action: ExecIf(MultiOp{Expressions: []Expression{Equal(Int(1), Int(1))}, Operator: "|"}, Noop("ok"))},

@@ -50,6 +50,9 @@ func (op MultiOp) Validate() error {
 	if len(op.Expressions) < 2 {
 		return fmt.Errorf("a logical operation needs at least 2 expressions, got %d", len(op.Expressions))
 	}
+	if op.Operator == "" {
+		return fmt.Errorf("a logical operation needs an operator")
+	}
 	if err := errorIfAny("logical operator", op.Operator, invalidOperatorChars); err != nil {
 		return err
 	}

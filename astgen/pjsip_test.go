@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/scjalliance/astconf/astgen"
+	"github.com/scjalliance/astconf/astorg"
 	"github.com/scjalliance/astconf/astval"
 	"github.com/scjalliance/astconf/pjsip"
 )
@@ -175,5 +176,26 @@ func TestEndpointsSkipUnnamedPhones(t *testing.T) {
 	data.Phones[len(data.Phones)-1].MAC = ""
 	if got, want := len(astgen.Endpoints(data, pjsip.Endpoint{}, "default")), 5; got != want {
 		t.Errorf("Endpoints() returned %d endpoints, want %d", got, want)
+	}
+}
+
+// TestSoftphoneWithoutUsername verifies that a software phone carrying no
+// username is skipped rather than rendered as an unnamed section. Asterisk
+// rejects a "[]" section header, so emitting one breaks the whole file.
+func TestSoftphoneWithoutUsername(t *testing.T) {
+	data := &astorg.DataSet{
+		Softphones: astorg.SoftphoneList{
+			{Username: "", Secret: "unused"},
+		},
+	}
+
+	if got := astgen.Endpoints(data, pjsip.Endpoint{}, "default"); len(got) != 0 {
+		t.Errorf("Endpoints() returned %d entries for an unnamed softphone, want 0", len(got))
+	}
+	if got := astgen.Auths(data, pjsip.Auth{}); len(got) != 0 {
+		t.Errorf("Auths() returned %d entries for an unnamed softphone, want 0", len(got))
+	}
+	if got := astgen.AORs(data, pjsip.AOR{}); len(got) != 0 {
+		t.Errorf("AORs() returned %d entries for an unnamed softphone, want 0", len(got))
 	}
 }

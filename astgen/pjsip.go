@@ -65,6 +65,9 @@ func Endpoints(data *astorg.DataSet, base pjsip.Endpoint, context string) []pjsi
 
 	// Step 2: Add all software phones
 	for _, phone := range data.Softphones {
+		if phone.Username == "" {
+			continue
+		}
 		var vars []astval.Var
 		var callerID string
 		if phone.Location != "" {
@@ -195,6 +198,9 @@ func Auths(data *astorg.DataSet, base pjsip.Auth) []pjsip.Auth {
 
 	// Step 2: Add all software phones
 	for _, phone := range data.Softphones {
+		if phone.Username == "" {
+			continue
+		}
 		auth := pjsip.Auth{
 			Name:     authName(phone.Username),
 			Username: phone.Username,
@@ -232,6 +238,9 @@ func AORs(data *astorg.DataSet, base pjsip.AOR) []pjsip.AOR {
 
 	// Step 2: Add all software phones
 	for _, phone := range data.Softphones {
+		if phone.Username == "" {
+			continue
+		}
 		aor := pjsip.AOR{
 			Name: aorName(phone.Username),
 		}

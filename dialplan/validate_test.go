@@ -74,6 +74,7 @@ func TestValidDialplanContent(t *testing.T) {
 		action Action
 	}{
 		{name: "pattern with brackets", number: "_[2-9]XX", action: Noop("ok")},
+		{name: "quoted comparison nested in a quoted comparison", number: "100", action: ExecIf(Equal(CallerID("a"), Equal(CallerID("b"), String("x"))), Noop("ok"))},
 		{name: "pattern with wildcard", number: "_1XX.", action: Noop("ok")},
 		{name: "special extension", number: "s", action: Noop("ok")},
 		{name: "spaces and punctuation in noop", number: "100", action: Noop("Call Fred Flintstone - ext. 100")},

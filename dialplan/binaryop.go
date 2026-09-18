@@ -74,12 +74,26 @@ func (op BinaryOp) Validate() error {
 		return err
 	}
 	if op.quoted() {
-		if err := errorIfAny("quoted operand", op.E1.Expr().String(), `"`); err != nil {
+		if err := validateQuotedOperand(op.E1); err != nil {
 			return err
 		}
-		if err := errorIfAny("quoted operand", op.E2.Expr().String(), `"`); err != nil {
+		if err := validateQuotedOperand(op.E2); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// validateQuotedOperand rejects a double quote in an operand that Expr will
+// wrap in quotes.
+//
+// A nested operation is exempt. It renders as $[...] and supplies its own
+// quoting around its own operands, which its own Validate has already
+// checked, so the quotes in its rendered form are meant to be there.
+func validateQuotedOperand(e Expression) error {
+	def := e.Expr()
+	if def.Kind == Op {
+		return nil
+	}
+	return errorIfAny("quoted operand", def.String(), `"`)
 }

@@ -156,7 +156,7 @@ func typeFeatures(t reflect.Type) (features typeFeature) {
 		if !features.Marshaler() && elemFeatures.Block() {
 			features |= tfBlock
 		}
-		if !features.Marshaler() && !features.MarshalerAddr() && elemFeatures.BlockAddr() {
+		if !features.Marshaler() && !features.MarshalerAddr() && (elemFeatures.Block() || elemFeatures.BlockAddr()) {
 			features |= tfBlockAddr
 		}
 	}

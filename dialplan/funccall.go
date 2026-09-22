@@ -14,8 +14,6 @@ type FuncCall struct {
 }
 
 // String returns the invocation string for the function call.
-//
-// FIXME: Sanitize the function name and arguments.
 func (call FuncCall) String() string {
 	args := strings.Join(call.Args, ",")
 	t := strings.Join(call.TrueArgs, ",")

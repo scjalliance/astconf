@@ -46,3 +46,8 @@ type MarshalerError struct {
 func (e *MarshalerError) Error() string {
 	return fmt.Sprintf("astconf: error calling %s for type %s: %s", e.call, e.Type, e.Err)
 }
+
+// Unwrap returns the error returned by the marshaling function.
+func (e *MarshalerError) Unwrap() error {
+	return e.Err
+}

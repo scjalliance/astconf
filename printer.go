@@ -1,6 +1,7 @@
 package astconf
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -24,7 +25,21 @@ var (
 	newline          = []byte("\n")
 )
 
-//var newlineReplacer = strings.NewReplacer("")
+// Characters that cannot appear in each component of a configuration file.
+// Newlines would start a new line, brackets and parentheses would be read
+// as section headers, and an equals sign would end a setting name early.
+//
+// A semicolon begins a comment, so everything after one is discarded. Values
+// are exempt because they are escaped on the way out, and comments are exempt
+// because a semicolon inside one is harmless.
+const (
+	invalidNameChars     = "\r\n=[];"
+	invalidValueChars    = "\r\n"
+	invalidSectionChars  = "\r\n[]();"
+	invalidTemplateChars = "\r\n[](),;"
+	invalidCommentChars  = "\r\n"
+	invalidPathChars     = "\r\n;"
+)
 
 // Printer is capable of printing asterisk configuration data to an
 // underlying io.Writer.
@@ -49,6 +64,9 @@ func NewPrinter(w io.Writer) *Printer {
 
 // Include will print a file include construct to p.Writer for the given path.
 func (p *Printer) Include(path string) error {
+	if err := errorIfAny("include path", path, invalidPathChars); err != nil {
+		return err
+	}
 	wg := writegroup{Writer: p.Writer}
 	wg.Write(includeStart)
 	wg.Write([]byte(path))
@@ -61,6 +79,9 @@ func (p *Printer) Include(path string) error {
 
 // Comment writes a single line comment to p.Writer.
 func (p *Printer) Comment(comment string) error {
+	if err := errorIfAny("comment", comment, invalidCommentChars); err != nil {
+		return err
+	}
 	wg := writegroup{Writer: p.Writer}
 	wg.Write(commentStart)
 	wg.Write([]byte(comment))
@@ -77,7 +98,13 @@ func (p *Printer) Break() {
 
 // Start begins a new field by writing its name and optional
 // separator.
+//
+// An InvalidContentError will be returned if the name contains an
+// invalid character.
 func (p *Printer) Start(name string, sep string) error {
+	if err := errorIfAny("field name", name, invalidNameChars); err != nil {
+		return err
+	}
 	return p.start([]byte(name), []byte(sep))
 }
 
@@ -113,9 +140,14 @@ func (p *Printer) start(name []byte, sep []byte) error {
 
 // Section writes a header starting a new section.
 func (p *Printer) Section(section string, templates ...string) error {
-	//if err := errorIfAny("section", section, "[]\n"); err != nil {
-	//	return err
-	//}
+	if err := errorIfAny("section name", section, invalidSectionChars); err != nil {
+		return err
+	}
+	for _, template := range templates {
+		if err := errorIfAny("section template", template, invalidTemplateChars); err != nil {
+			return err
+		}
+	}
 	wg := writegroup{Writer: p.Writer}
 
 	if p.Started {
@@ -154,30 +186,34 @@ func (p *Printer) section(section []byte) error {
 //
 // If the underlying write operation fails an error will be returned.
 func (p *Printer) Setting(setting, value string) error {
-	/*
-		if err := errorIfAny("setting", setting, "\n="); err != nil {
-			return err
-		}
-		if err := errorIfAny("value", value, "\n"); err != nil {
-			return err
-		}
-	*/
+	if err := errorIfAny("setting name", setting, invalidNameChars); err != nil {
+		return err
+	}
+	if err := errorIfAny("value", value, invalidValueChars); err != nil {
+		return err
+	}
 	if err := p.start([]byte(setting), settingSeparator); err != nil {
 		return err
 	}
 	wg := writegroup{Writer: p.Writer}
-	wg.Write([]byte(value))
+	wg.Write(escapeValue([]byte(value)))
 	wg.Write(newline)
 	return wg.Err()
 }
 
 // Object will print an object to p.Writer.
 func (p *Printer) Object(object, value string) error {
+	if err := errorIfAny("object name", object, invalidNameChars); err != nil {
+		return err
+	}
+	if err := errorIfAny("value", value, invalidValueChars); err != nil {
+		return err
+	}
 	if err := p.start([]byte(object), objectSeparator); err != nil {
 		return err
 	}
 	wg := writegroup{Writer: p.Writer}
-	wg.Write([]byte(value))
+	wg.Write(escapeValue([]byte(value)))
 	wg.Write(newline)
 	return wg.Err()
 }
@@ -197,20 +233,33 @@ func (p *Printer) Write(v []byte) (n int, err error) {
 //	return err
 //}
 
-func stripChars(str, chars string) string {
-	return strings.Map(func(r rune) rune {
-		if strings.IndexRune(chars, r) < 0 {
-			return r
-		}
-		return -1
-	}, str)
+// escapeValue escapes characters in a setting or object value that would
+// otherwise change its meaning. An unescaped semicolon starts a comment.
+//
+// The returned slice is p itself when nothing needs escaping.
+func escapeValue(p []byte) []byte {
+	if bytes.IndexByte(p, ';') < 0 {
+		return p
+	}
+	return bytes.ReplaceAll(p, []byte(";"), []byte("\\;"))
 }
 
 func errorIfAny(component, value, badChars string) error {
 	if pos := strings.IndexAny(value, badChars); pos >= 0 {
 		return InvalidContentError{
 			Component: component,
-			Value:     stripChars(value, badChars),
+			Value:     value,
+			Pos:       pos,
+		}
+	}
+	return nil
+}
+
+func errorIfAnyBytes(component string, value []byte, badChars string) error {
+	if pos := bytes.IndexAny(value, badChars); pos >= 0 {
+		return InvalidContentError{
+			Component: component,
+			Value:     string(value),
 			Pos:       pos,
 		}
 	}
@@ -219,19 +268,21 @@ func errorIfAny(component, value, badChars string) error {
 
 // InvalidContentError is returned when configuration data contains invalid characters.
 type InvalidContentError struct {
-	Component string
-	Value     string
-	Pos       int
+	Component string // The kind of component, such as "value" or "section name"
+	Value     string // The offending content
+	Pos       int    // The position of the first invalid character in Value
 }
 
 func (err InvalidContentError) Error() string {
 	var kind = func(b byte) string {
 		switch b {
 		case '\n':
-			return "newline character"
+			return "a newline"
+		case '\r':
+			return "a carriage return"
 		default:
-			return "an invalid character"
+			return fmt.Sprintf("an invalid character %q", b)
 		}
 	}
-	return fmt.Sprintf("asterisk configuration %s \"%s\" contains %s", err.Component, err.Value, kind(err.Value[err.Pos]))
+	return fmt.Sprintf("asterisk configuration %s %q contains %s", err.Component, err.Value, kind(err.Value[err.Pos]))
 }

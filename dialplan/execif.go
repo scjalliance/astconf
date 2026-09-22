@@ -47,3 +47,15 @@ func (app ExecIfApp) App() AppCall {
 	}
 	return call
 }
+
+// Validate returns an error if the expression or either application is
+// invalid.
+func (app ExecIfApp) Validate() error {
+	if err := validate(app.Expression); err != nil {
+		return err
+	}
+	if err := validate(app.IfTrue); err != nil {
+		return err
+	}
+	return validate(app.IfFalse)
+}

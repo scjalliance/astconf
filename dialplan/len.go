@@ -24,3 +24,8 @@ func (f LenFunc) Func() FuncCall {
 func (f LenFunc) Expr() ExprDef {
 	return ExprDef{Content: f.Func().String()}
 }
+
+// Validate returns an error if the value is invalid.
+func (f LenFunc) Validate() error {
+	return validate(f.Value)
+}

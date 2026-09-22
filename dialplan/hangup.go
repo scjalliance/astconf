@@ -19,3 +19,8 @@ func (app HangupApp) App() AppCall {
 	}
 	return AppCall{Name: "Hangup"}
 }
+
+// Validate returns an error if the cause contains invalid characters.
+func (app HangupApp) Validate() error {
+	return errorIfAny("hangup cause", app.Cause, invalidArgChars)
+}

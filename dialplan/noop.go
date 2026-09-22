@@ -22,3 +22,8 @@ func (noop NoopApp) App() AppCall {
 		Args: []string{noop.Text},
 	}
 }
+
+// Validate returns an error if the text contains invalid characters.
+func (noop NoopApp) Validate() error {
+	return errorIfAny("noop text", noop.Text, invalidArgChars)
+}

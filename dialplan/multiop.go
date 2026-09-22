@@ -1,6 +1,9 @@
 package dialplan
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // MultiOp is a operation on two or more expressions.
 type MultiOp struct {
@@ -39,4 +42,24 @@ func And(e1 Expression, e2 Expression, extra ...Expression) MultiOp {
 		Expressions: append([]Expression{e1, e2}, extra...),
 		Operator:    "&",
 	}
+}
+
+// Validate returns an error if there are fewer than two operands, or if the
+// operator or any operand is invalid.
+func (op MultiOp) Validate() error {
+	if len(op.Expressions) < 2 {
+		return fmt.Errorf("a logical operation needs at least 2 expressions, got %d", len(op.Expressions))
+	}
+	if op.Operator == "" {
+		return fmt.Errorf("a logical operation needs an operator")
+	}
+	if err := errorIfAny("logical operator", op.Operator, invalidOperatorChars); err != nil {
+		return err
+	}
+	for _, expr := range op.Expressions {
+		if err := validate(expr); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -39,3 +39,8 @@ func (f CallerIDFunc) Ref() string {
 func (f CallerIDFunc) QuotedContent() bool {
 	return true
 }
+
+// Validate returns an error if the data type contains invalid characters.
+func (f CallerIDFunc) Validate() error {
+	return errorIfAny("callerid data type", f.DataType, invalidArgChars)
+}

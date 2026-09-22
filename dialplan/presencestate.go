@@ -39,3 +39,12 @@ func (f PresenceStateFunc) Ref() string {
 func (f PresenceStateFunc) QuotedContent() bool {
 	return true
 }
+
+// Validate returns an error if the provider or field contains invalid
+// characters.
+func (f PresenceStateFunc) Validate() error {
+	if err := errorIfAny("presence provider", f.Provider, invalidArgChars); err != nil {
+		return err
+	}
+	return errorIfAny("presence field", f.Field, invalidArgChars)
+}

@@ -1,5 +1,7 @@
 package dialplan
 
+import "fmt"
+
 // BinaryOp is a binary operation on two expressions.
 type BinaryOp struct {
 	E1       Expression
@@ -11,17 +13,20 @@ type BinaryOp struct {
 func (op BinaryOp) Expr() ExprDef {
 	e1 := op.E1.Expr().String()
 	e2 := op.E2.Expr().String()
-	quoted := false
-	if q1, ok := op.E1.(Quoteable); ok {
-		quoted = quoted || q1.QuotedContent()
-	}
-	if q2, ok := op.E2.(Quoteable); ok {
-		quoted = quoted || q2.QuotedContent()
-	}
-	if quoted {
+	if op.quoted() {
 		return ExprDef{Content: `"` + e1 + `"` + op.Operator + `"` + e2 + `"`, Kind: Op}
 	}
 	return ExprDef{Content: e1 + op.Operator + e2, Kind: Op}
+}
+
+// quoted reports whether Expr will wrap each operand in double quotes, which
+// it does when either operand asks for it.
+func (op BinaryOp) quoted() bool {
+	if q1, ok := op.E1.(Quoteable); ok && q1.QuotedContent() {
+		return true
+	}
+	q2, ok := op.E2.(Quoteable)
+	return ok && q2.QuotedContent()
 }
 
 // Equal returns an equality operation.
@@ -52,4 +57,48 @@ func LessThanOrEqual(e1 Expression, e2 Expression) BinaryOp {
 // NotEqual returns an inequality operation.
 func NotEqual(e1 Expression, e2 Expression) BinaryOp {
 	return BinaryOp{E1: e1, E2: e2, Operator: "!="}
+}
+
+// Validate returns an error if the operator or either operand is invalid.
+//
+// When Expr will wrap the operands in double quotes, a quote in either
+// rendered operand would close it early and change the comparison, so it is
+// rejected here rather than in the operand's own validation, where a quote is
+// harmless outside a quoted comparison.
+func (op BinaryOp) Validate() error {
+	if op.Operator == "" {
+		return fmt.Errorf("a binary operation needs an operator")
+	}
+	if err := errorIfAny("binary operator", op.Operator, invalidOperatorChars); err != nil {
+		return err
+	}
+	if err := validate(op.E1); err != nil {
+		return err
+	}
+	if err := validate(op.E2); err != nil {
+		return err
+	}
+	if op.quoted() {
+		if err := validateQuotedOperand(op.E1); err != nil {
+			return err
+		}
+		if err := validateQuotedOperand(op.E2); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateQuotedOperand rejects a double quote in an operand that Expr will
+// wrap in quotes.
+//
+// A nested operation is exempt. It renders as $[...] and supplies its own
+// quoting around its own operands, which its own Validate has already
+// checked, so the quotes in its rendered form are meant to be there.
+func validateQuotedOperand(e Expression) error {
+	def := e.Expr()
+	if def.Kind == Op {
+		return nil
+	}
+	return errorIfAny("quoted operand", def.String(), `"`)
 }

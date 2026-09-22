@@ -69,10 +69,20 @@ func (app PageApp) Options() string {
 		opts += "s"
 	}
 	if app.Announcement != "" {
-		opts += "A(" + app.Announcement + ")" // FIXME: Sanitize?
+		opts += "A(" + app.Announcement + ")"
 		if app.AnnounceToCaller {
 			opts += "n"
 		}
 	}
 	return opts
+}
+
+// Validate returns an error if any recipient or the announcement is invalid.
+func (app PageApp) Validate() error {
+	for _, device := range app.Recipients {
+		if err := device.Validate(); err != nil {
+			return err
+		}
+	}
+	return errorIfAny("page announcement", app.Announcement, invalidArgChars)
 }

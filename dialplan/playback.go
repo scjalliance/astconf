@@ -34,3 +34,13 @@ func (app PlaybackApp) App() AppCall {
 	}
 	return call
 }
+
+// Validate returns an error if any file name contains invalid characters.
+func (app PlaybackApp) Validate() error {
+	for _, file := range app.Files {
+		if err := errorIfAny("playback file", file, invalidFileChars); err != nil {
+			return err
+		}
+	}
+	return nil
+}

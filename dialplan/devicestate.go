@@ -27,3 +27,8 @@ func (f DeviceStateFunc) Expr() ExprDef {
 func (f DeviceStateFunc) Ref() string {
 	return f.Func().String()
 }
+
+// Validate returns an error if the device is invalid.
+func (f DeviceStateFunc) Validate() error {
+	return f.Device.Validate()
+}

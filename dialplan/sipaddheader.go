@@ -27,3 +27,12 @@ func (app SIPAddHeaderApp) App() AppCall {
 		Args: []string{fmt.Sprintf("%s:%s", app.Header, app.Content)},
 	}
 }
+
+// Validate returns an error if the header or its content contains invalid
+// characters.
+func (app SIPAddHeaderApp) Validate() error {
+	if err := errorIfAny("header name", app.Header, invalidArgChars); err != nil {
+		return err
+	}
+	return errorIfAny("header content", app.Content, invalidArgChars)
+}

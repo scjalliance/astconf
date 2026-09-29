@@ -1,6 +1,9 @@
 package dialplan
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 // https://wiki.asterisk.org/wiki/display/AST/Gosub
 
@@ -36,4 +39,24 @@ func (gosub GosubApp) App() AppCall {
 	app.Args = append(app.Args, strconv.Itoa(gosub.Priority))
 	app.Args = append(app.Args, gosub.Args...)
 	return app
+}
+
+// Validate returns an error if the priority is below one, or if the context,
+// extension or any argument contains invalid characters.
+func (gosub GosubApp) Validate() error {
+	if gosub.Priority < 1 {
+		return fmt.Errorf("gosub priority must be at least 1, got %d", gosub.Priority)
+	}
+	if err := errorIfAny("gosub context", gosub.Context, invalidArgChars); err != nil {
+		return err
+	}
+	if err := errorIfAny("gosub extension", gosub.Extension, invalidArgChars); err != nil {
+		return err
+	}
+	for _, arg := range gosub.Args {
+		if err := errorIfAny("gosub argument", arg, invalidArgChars); err != nil {
+			return err
+		}
+	}
+	return nil
 }

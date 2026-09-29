@@ -44,3 +44,13 @@ func (dial DialApp) App() AppCall {
 	}
 	return app
 }
+
+// Validate returns an error if any device is invalid.
+func (dial DialApp) Validate() error {
+	for _, device := range dial.Devices {
+		if err := device.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}

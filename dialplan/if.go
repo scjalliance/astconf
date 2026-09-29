@@ -52,3 +52,14 @@ func (function IfFunc) Func() FuncCall {
 func (function IfFunc) Expr() ExprDef {
 	return ExprDef{Content: function.Func().String()}
 }
+
+// Validate returns an error if the condition or either value is invalid.
+func (function IfFunc) Validate() error {
+	if err := validate(function.Expression); err != nil {
+		return err
+	}
+	if err := validate(function.IfTrue); err != nil {
+		return err
+	}
+	return validate(function.IfFalse)
+}

@@ -33,3 +33,16 @@ func (macro MacroApp) App() AppCall {
 		Args: args,
 	}
 }
+
+// Validate returns an error if the macro name or any argument is invalid.
+func (macro MacroApp) Validate() error {
+	if err := errorIfAny("macro name", macro.Name, invalidArgChars); err != nil {
+		return err
+	}
+	for _, arg := range macro.Args {
+		if err := validate(arg); err != nil {
+			return err
+		}
+	}
+	return nil
+}

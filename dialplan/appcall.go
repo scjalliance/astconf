@@ -14,8 +14,6 @@ type AppCall struct {
 }
 
 // String returns the invocation string for the application call.
-//
-// FIXME: Sanitize the function name and arguments.
 func (call AppCall) String() string {
 	args := strings.Join(call.Args, ",")
 	t := strings.Join(call.TrueArgs, ",")

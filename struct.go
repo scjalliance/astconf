@@ -126,7 +126,7 @@ func newStructEncoder(t reflect.Type, canAddr bool) encoderFunc {
 			elemEnc = newSettingEncoder(f.name, typeEncoder(t))
 		}
 		if f.OmitEmtpy() {
-			elemEnc = newOmitEmptyEncoder(t, elemEnc)
+			elemEnc = newOmitEmptyEncoder(elemEnc)
 		}
 		encoders = append(encoders, newFieldEncoder(f.index, elemEnc))
 	}

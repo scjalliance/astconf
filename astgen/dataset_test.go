@@ -20,8 +20,8 @@ func testData() *astorg.DataSet {
 				Name:         "Quarry",
 				Abbreviation: "QRY",
 				Timezone:     "America/Los_Angeles",
-				CallerID:     "3605550100",
-				AreaCode:     "360",
+				CallerID:     "5555550100",
+				AreaCode:     "555",
 			},
 		},
 		People: astorg.PersonList{
@@ -33,7 +33,7 @@ func testData() *astorg.DataSet {
 				VoicemailCode:   "1234",
 				VoicemailAccess: astorgvm.PhoneAndEmail,
 				ContactNumbers: []astorg.Number{
-					{Label: "Mobile", Dial: "3605551234"},
+					{Label: "Mobile", Dial: "5555551234"},
 				},
 				EmailAddresses: []astorg.Email{
 					{Address: "fred@example.com", Primary: true},

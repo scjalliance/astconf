@@ -30,11 +30,11 @@ func TestEndpoints(t *testing.T) {
 		"callerid = \"Fred Flintstone\" <100>\n" +
 		"mailboxes = 100@default\n" +
 		"set_var = VMCODE=1234\n" +
-		"set_var = MOBILE=3605551234\n" +
+		"set_var = MOBILE=5555551234\n" +
 		"set_var = USERNAME=fred\n" +
 		"set_var = USER_LOCATION=Quarry\n" +
-		"set_var = OUTBOUND_CALLERID=3605550100\n" +
-		"set_var = AREACODE=360\n" +
+		"set_var = OUTBOUND_CALLERID=5555550100\n" +
+		"set_var = AREACODE=555\n" +
 		"\n" +
 		"[lobby]\n" +
 		"type = endpoint\n" +
@@ -44,8 +44,8 @@ func TestEndpoints(t *testing.T) {
 		"callerid = \"Lobby\" <200>\n" +
 		"mailboxes = 200@default\n" +
 		"set_var = USER_LOCATION=Quarry\n" +
-		"set_var = OUTBOUND_CALLERID=3605550100\n" +
-		"set_var = AREACODE=360\n" +
+		"set_var = OUTBOUND_CALLERID=5555550100\n" +
+		"set_var = AREACODE=555\n" +
 		"\n" +
 		"[000fd3000003]\n" +
 		"type = endpoint\n" +
@@ -54,8 +54,8 @@ func TestEndpoints(t *testing.T) {
 		"aors = 000fd3000003-aor\n" +
 		"callerid = \"QRY-000FD3000003\" <UNAVAILABLE>\n" +
 		"set_var = USER_LOCATION=Quarry\n" +
-		"set_var = OUTBOUND_CALLERID=3605550100\n" +
-		"set_var = AREACODE=360\n" +
+		"set_var = OUTBOUND_CALLERID=5555550100\n" +
+		"set_var = AREACODE=555\n" +
 		"\n" +
 		"[fred.soft](soft)\n" +
 		"type = endpoint\n" +
@@ -64,11 +64,11 @@ func TestEndpoints(t *testing.T) {
 		"aors = fred.soft-aor\n" +
 		"callerid = \"Fred Flintstone\" <100>\n" +
 		"set_var = VMCODE=1234\n" +
-		"set_var = MOBILE=3605551234\n" +
+		"set_var = MOBILE=5555551234\n" +
 		"set_var = USERNAME=fred\n" +
 		"set_var = USER_LOCATION=Quarry\n" +
-		"set_var = OUTBOUND_CALLERID=3605550100\n" +
-		"set_var = AREACODE=360\n" +
+		"set_var = OUTBOUND_CALLERID=5555550100\n" +
+		"set_var = AREACODE=555\n" +
 		"\n" +
 		"[lobby.soft]\n" +
 		"type = endpoint\n" +

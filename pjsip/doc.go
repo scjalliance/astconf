@@ -12,5 +12,6 @@
 // settings without the section header. This matches the sip and dpma
 // packages.
 //
-// Only the settings needed by SCJ configurations are modeled.
+// Only a subset of the PJSIP settings is modeled. Fields are added as
+// configurations need them.
 package pjsip

@@ -145,23 +145,23 @@ func TestSeconds(t *testing.T) {
 }
 
 func TestVar(t *testing.T) {
-	v := astval.NewVar("AREACODE", "360")
-	if got := v.String(); got != "AREACODE=360" {
-		t.Errorf("String() = %q, want %q", got, "AREACODE=360")
+	v := astval.NewVar("AREACODE", "555")
+	if got := v.String(); got != "AREACODE=555" {
+		t.Errorf("String() = %q, want %q", got, "AREACODE=555")
 	}
 	text, err := v.MarshalText()
 	if err != nil {
 		t.Fatalf("MarshalText() error: %v", err)
 	}
-	if string(text) != "AREACODE=360" {
-		t.Errorf("MarshalText() = %q, want %q", text, "AREACODE=360")
+	if string(text) != "AREACODE=555" {
+		t.Errorf("MarshalText() = %q, want %q", text, "AREACODE=555")
 	}
 
 	tests := []struct {
 		text string
 		want astval.Var
 	}{
-		{text: "AREACODE=360", want: astval.Var{Name: "AREACODE", Value: "360"}},
+		{text: "AREACODE=555", want: astval.Var{Name: "AREACODE", Value: "555"}},
 		{text: "NAME=a=b", want: astval.Var{Name: "NAME", Value: "a=b"}}, // Only the first = separates
 		{text: "FLAG", want: astval.Var{Name: "FLAG"}},
 		{text: "EMPTY=", want: astval.Var{Name: "EMPTY", Value: ""}},

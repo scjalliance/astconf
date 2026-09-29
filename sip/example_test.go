@@ -12,7 +12,7 @@ import (
 func Example() {
 	entity := sip.Entity{
 		Username:   "fred.flintstone",
-		Templates:  []string{"scjdefault"},
+		Templates:  []string{"desk"},
 		Type:       sip.Friend,
 		Disallow:   []string{"all"},
 		Allow:      []string{"ulaw", "g722"},
@@ -25,7 +25,7 @@ func Example() {
 		Secret:     "bedrock",
 		Variables: []astval.Var{
 			astval.NewVar("USER_LOCATION", "QRY"),
-			astval.NewVar("AREACODE", "360"),
+			astval.NewVar("AREACODE", "555"),
 		},
 	}
 	var buf bytes.Buffer
@@ -35,7 +35,7 @@ func Example() {
 	}
 	fmt.Print(buf.String())
 	// Output:
-	// [fred.flintstone](scjdefault)
+	// [fred.flintstone](desk)
 	// type = friend
 	// disallow = all
 	// allow = ulaw
@@ -48,5 +48,5 @@ func Example() {
 	// mailbox = 100@default
 	// secret = bedrock
 	// setvar = USER_LOCATION=QRY
-	// setvar = AREACODE=360
+	// setvar = AREACODE=555
 }

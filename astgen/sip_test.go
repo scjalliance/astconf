@@ -29,11 +29,11 @@ func TestSIP(t *testing.T) {
 		"mailbox = 100@default\n" +
 		"secret = fred-secret\n" +
 		"setvar = VMCODE=1234\n" +
-		"setvar = MOBILE=3605551234\n" +
+		"setvar = MOBILE=5555551234\n" +
 		"setvar = USERNAME=fred\n" +
 		"setvar = USER_LOCATION=Quarry\n" +
-		"setvar = OUTBOUND_CALLERID=3605550100\n" +
-		"setvar = AREACODE=360\n" +
+		"setvar = OUTBOUND_CALLERID=5555550100\n" +
+		"setvar = AREACODE=555\n" +
 		"\n" +
 		"[lobby]\n" +
 		"type = friend\n" +
@@ -43,8 +43,8 @@ func TestSIP(t *testing.T) {
 		"mailbox = 200@default\n" +
 		"secret = lobby-secret\n" +
 		"setvar = USER_LOCATION=Quarry\n" +
-		"setvar = OUTBOUND_CALLERID=3605550100\n" +
-		"setvar = AREACODE=360\n" +
+		"setvar = OUTBOUND_CALLERID=5555550100\n" +
+		"setvar = AREACODE=555\n" +
 		"\n" +
 		"[000fd3000003]\n" +
 		"type = friend\n" +
@@ -53,8 +53,8 @@ func TestSIP(t *testing.T) {
 		"host = dynamic\n" +
 		"secret = spare-secret\n" +
 		"setvar = USER_LOCATION=Quarry\n" +
-		"setvar = OUTBOUND_CALLERID=3605550100\n" +
-		"setvar = AREACODE=360\n" +
+		"setvar = OUTBOUND_CALLERID=5555550100\n" +
+		"setvar = AREACODE=555\n" +
 		"\n" +
 		"[fred.soft](soft)\n" +
 		"type = friend\n" +
@@ -63,11 +63,11 @@ func TestSIP(t *testing.T) {
 		"host = dynamic\n" +
 		"secret = fred-soft-secret\n" +
 		"setvar = VMCODE=1234\n" +
-		"setvar = MOBILE=3605551234\n" +
+		"setvar = MOBILE=5555551234\n" +
 		"setvar = USERNAME=fred\n" +
 		"setvar = USER_LOCATION=Quarry\n" +
-		"setvar = OUTBOUND_CALLERID=3605550100\n" +
-		"setvar = AREACODE=360\n" +
+		"setvar = OUTBOUND_CALLERID=5555550100\n" +
+		"setvar = AREACODE=555\n" +
 		"\n" +
 		"[lobby.soft]\n" +
 		"type = friend\n" +

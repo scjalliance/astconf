@@ -12,25 +12,25 @@ import (
 
 func Example() {
 	endpoint := pjsip.Endpoint{
-		Name:      "132",
-		Templates: []string{"scjdefault"},
-		Auth:      "132-auth",
-		AORs:      []string{"132-aor"},
-		CallerID:  "\"Dusty Wilson\" <132>",
-		Mailboxes: []string{"132@default"},
+		Name:      "100",
+		Templates: []string{"desk"},
+		Auth:      "100-auth",
+		AORs:      []string{"100-aor"},
+		CallerID:  "\"Fred Flintstone\" <100>",
+		Mailboxes: []string{"100@default"},
 		Variables: []astval.Var{
-			astval.NewVar("USER_LOCATION", "LCY"),
-			astval.NewVar("AREACODE", "360"),
+			astval.NewVar("USER_LOCATION", "QRY"),
+			astval.NewVar("AREACODE", "555"),
 		},
 	}
 	auth := pjsip.Auth{
-		Name:     "132-auth",
+		Name:     "100-auth",
 		AuthType: "userpass",
-		Username: "132",
-		Password: "secret",
+		Username: "100",
+		Password: "bedrock",
 	}
 	aor := pjsip.AOR{
-		Name:           "132-aor",
+		Name:           "100-aor",
 		MaxContacts:    astval.NewInt(5),
 		RemoveExisting: astval.Yes,
 	}
@@ -45,22 +45,22 @@ func Example() {
 	}
 	fmt.Print(buf.String())
 	// Output:
-	// [132](scjdefault)
+	// [100](desk)
 	// type = endpoint
-	// auth = 132-auth
-	// aors = 132-aor
-	// callerid = "Dusty Wilson" <132>
-	// mailboxes = 132@default
-	// set_var = USER_LOCATION=LCY
-	// set_var = AREACODE=360
+	// auth = 100-auth
+	// aors = 100-aor
+	// callerid = "Fred Flintstone" <100>
+	// mailboxes = 100@default
+	// set_var = USER_LOCATION=QRY
+	// set_var = AREACODE=555
 	//
-	// [132-auth]
+	// [100-auth]
 	// type = auth
 	// auth_type = userpass
-	// username = 132
-	// password = secret
+	// username = 100
+	// password = bedrock
 	//
-	// [132-aor]
+	// [100-aor]
 	// type = aor
 	// max_contacts = 5
 	// remove_existing = yes
@@ -68,7 +68,7 @@ func Example() {
 
 func ExampleEndpoint_template() {
 	endpoint := pjsip.Endpoint{
-		Name:                       "scjbase",
+		Name:                       "desk",
 		Transport:                  "transport-tcp",
 		Context:                    "from-internal",
 		Disallow:                   []string{"all"},
@@ -88,7 +88,7 @@ func ExampleEndpoint_template() {
 	}
 	fmt.Print(buf.String())
 	// Output:
-	// [scjbase]
+	// [desk]
 	// type = endpoint
 	// transport = transport-tcp
 	// context = from-internal
@@ -110,7 +110,7 @@ func ExampleTransport() {
 		Bind:                     "0.0.0.0:5061",
 		ExternalMediaAddress:     "198.51.100.10",
 		ExternalSignalingAddress: "198.51.100.10",
-		LocalNet:                 []string{"10.100.0.0/16", "100.64.0.0/10"},
+		LocalNet:                 []string{"192.168.0.0/16", "100.64.0.0/10"},
 		CertFile:                 "/etc/asterisk/keys/asterisk.pem",
 		PrivKeyFile:              "/etc/asterisk/keys/asterisk.key",
 		CAListFile:               "/etc/asterisk/keys/ca.crt",
@@ -129,7 +129,7 @@ func ExampleTransport() {
 	// bind = 0.0.0.0:5061
 	// external_media_address = 198.51.100.10
 	// external_signaling_address = 198.51.100.10
-	// local_net = 10.100.0.0/16
+	// local_net = 192.168.0.0/16
 	// local_net = 100.64.0.0/10
 	// cert_file = /etc/asterisk/keys/asterisk.pem
 	// priv_key_file = /etc/asterisk/keys/asterisk.key

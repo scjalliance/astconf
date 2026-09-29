@@ -17,7 +17,7 @@ func TestLocationEqual(t *testing.T) {
 		t.Error("locations with different paging groups are Equal")
 	}
 	b = a
-	b.AreaCode = "360"
+	b.AreaCode = "555"
 	if a.Equal(&b) {
 		t.Error("locations with different area codes are Equal")
 	}
@@ -35,14 +35,14 @@ func TestPersonEqual(t *testing.T) {
 		Username:       "fred",
 		Extension:      "100",
 		Phones:         []string{"mac1"},
-		ContactNumbers: []astorg.Number{{Label: "Mobile", Dial: "3605551234"}},
+		ContactNumbers: []astorg.Number{{Label: "Mobile", Dial: "5555551234"}},
 		EmailAddresses: []astorg.Email{{Address: "fred@example.com", Primary: true}},
 	}
 	b := a
 	if !a.Equal(&b) {
 		t.Error("identical people are not Equal")
 	}
-	b.ContactNumbers = []astorg.Number{{Label: "Mobile", Dial: "3605554321"}}
+	b.ContactNumbers = []astorg.Number{{Label: "Mobile", Dial: "5555554321"}}
 	if a.Equal(&b) {
 		t.Error("people with different contact numbers are Equal")
 	}

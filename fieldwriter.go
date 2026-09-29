@@ -1,5 +1,7 @@
 package astconf
 
+import "io"
+
 // fieldWriter is an io.Writer that wraps an Encoder. It will write the
 // field name ahead of any field value written via fieldWriter.Write. The
 // field name to be written will be pulled from the encoder's scratch data,
@@ -50,13 +52,39 @@ func (fw fieldWriter) Write(p []byte) (n int, err error) {
 		e.w = e.base
 	}
 
-	n, err = e.w.Write(escaped)
-	if n > len(p) {
-		// Escaping may have lengthened the output, but io.Writer requires
-		// that n not exceed len(p).
-		n = len(p)
+	written, err := e.w.Write(escaped)
+	if written >= len(escaped) {
+		// Escaping may have lengthened the output, but io.Writer counts
+		// bytes of p, so a complete write reports len(p).
+		return len(p), err
 	}
-	return n, err
+
+	// A short write can stop partway through an escape sequence. Count only
+	// the bytes of p whose escaped form was written in full, and report an
+	// error, which io.Writer requires whenever n < len(p). The caller must
+	// not retry the rest: the written prefix may already hold the start of
+	// an escape, and writing it again would corrupt the line.
+	if err == nil {
+		err = io.ErrShortWrite
+	}
+	return unescapedLen(p, written), err
+}
+
+// unescapedLen returns how many leading bytes of p are fully represented in
+// the first written bytes of escapeValue(p).
+func unescapedLen(p []byte, written int) int {
+	out := 0
+	for i, b := range p {
+		width := 1
+		if b == ';' {
+			width = 2
+		}
+		if out+width > written {
+			return i
+		}
+		out += width
+	}
+	return len(p)
 }
 
 func (fw *fieldWriter) done() error {

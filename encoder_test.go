@@ -451,3 +451,70 @@ func TestMarshalEscapesSemicolon(t *testing.T) {
 		t.Errorf("Marshal() =\n%s\nwant:\n%s", got, want)
 	}
 }
+
+// splitEscapeWriter accepts every write in full except one carrying a
+// semicolon. Of that one it keeps only the bytes before the semicolon,
+// which ends the write partway through the escape sequence, and returns err.
+type splitEscapeWriter struct {
+	buf bytes.Buffer
+	err error
+}
+
+func (w *splitEscapeWriter) Write(p []byte) (int, error) {
+	i := bytes.IndexByte(p, ';')
+	if i < 0 {
+		return w.buf.Write(p)
+	}
+	w.buf.Write(p[:i])
+	return i, w.err
+}
+
+// shortWriteProbe is a SettingMarshaler that records what fieldWriter.Write
+// returns for a value containing a semicolon.
+type shortWriteProbe struct {
+	n   int
+	err error
+}
+
+func (p *shortWriteProbe) MarshalAsteriskSetting(w io.Writer) error {
+	p.n, p.err = w.Write([]byte("a;"))
+	return p.err
+}
+
+var errSplitWrite = errors.New("split write")
+
+// TestFieldWriterShortWrite checks the count and error a custom marshaler
+// sees when the underlying writer stops inside an escape sequence. "a;" is
+// written as "a\;", and the writer keeps only "a\", so one byte of the value
+// was written in full and the call must report an error.
+func TestFieldWriterShortWrite(t *testing.T) {
+	tests := []struct {
+		name       string
+		underlying error
+		want       error
+	}{
+		{name: "writer reports no error", underlying: nil, want: io.ErrShortWrite},
+		{name: "writer reports its own error", underlying: errSplitWrite, want: errSplitWrite},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := &splitEscapeWriter{err: tt.underlying}
+			probe := &shortWriteProbe{}
+			v := struct {
+				P *shortWriteProbe `astconf:"p"`
+			}{P: probe}
+
+			err := astconf.NewEncoder(w).Encode(&v)
+
+			if probe.n != 1 {
+				t.Errorf("Write() n = %d, want 1", probe.n)
+			}
+			if !errors.Is(probe.err, tt.want) {
+				t.Errorf("Write() error = %v, want %v", probe.err, tt.want)
+			}
+			if !errors.Is(err, tt.want) {
+				t.Errorf("Encode() error = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}

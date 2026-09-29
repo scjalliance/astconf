@@ -54,8 +54,9 @@ func (fw fieldWriter) Write(p []byte) (n int, err error) {
 
 	written, err := e.w.Write(escaped)
 	if written >= len(escaped) {
-		// Escaping may have lengthened the output, but io.Writer counts
-		// bytes of p, so a complete write reports len(p).
+		// The caller expects the number of bytes written to be in terms of
+		// p. If the escaped value was written in its entirety, then return
+		// len(p) to indicate a complete write.
 		return len(p), err
 	}
 

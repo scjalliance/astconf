@@ -37,6 +37,10 @@ Made 2026-10-13 with Emmaly:
 5. **API shape: a placement step plus per-server generators.** The existing
    whole-dataset generators stay as they are, so the current single server is
    unaffected until cutover.
+6. **No call waiting in the per-server path** (added 2026-10-13). A busy
+   device never rings. The `CustomPresence` "with Call Waiting Enabled"
+   override that `PhoneExtensions` renders is not rendered by the per-server
+   generators. The existing generators keep theirs.
 
 Taken from the phone system's decision log (`_phone/docs/decisions.md`):
 
@@ -79,6 +83,12 @@ and the device or extension is left out:
 | `location-no-server` | A desk phone at an office that has no server |
 | `server-missing` | A location names a server that is not in the dataset |
 | `extension-duplicate` | Two people or roles claim the same extension |
+| `device-conflict` | Desk phones that share a line name sit on different servers |
+
+For `extension-duplicate`, the first claimant in data set order (people, then
+roles) keeps the extension and each later one is reported. For
+`device-conflict`, such as a person with desk phones at two offices, the first
+phone in data set order decides the host and each later one is reported.
 
 `Problem` carries a rule name, the record kind and id, and a detail string,
 with no secret in any field. `scj-phone-gen` decides whether problems block a
@@ -110,21 +120,31 @@ section 4).
 
 **State publication.** For each peer:
 
-- `outbound-publish` `publish-<peer>`: `server_uri=sip:<peer
+- `outbound-publish` `publish-<peer>`: `server_uri=sip:trunk-<self>@<peer
   address>:5060;transport=tcp`, `event=asterisk-devicestate`,
-  `outbound_auth=auth-trunk-<peer>`. The hub adds a second one,
-  `publish-mwi-<peer>`, with `event=asterisk-mwi`.
+  `outbound_auth=auth-trunk-<peer>`, `@device_state_filter=<regex of this
+  server's own devices>`. The user part `trunk-<self>` is there because the
+  peer finds the inbound-publication by the request URI's user. The hub adds
+  a second one, `publish-mwi-<peer>`, with the same `server_uri` and
+  `event=asterisk-mwi`.
 - `inbound-publication` `trunk-<peer>`: `endpoint=trunk-<peer>`,
   `event_asterisk-devicestate=<peer>`, and on office servers
   `event_asterisk-mwi=<peer>` from the hub.
 - `asterisk-publication` `<peer>`: `devicestate_publish=publish-<peer>`,
-  `device_state=yes`, `device_state_filter=<regex of this server's own
-  devices>`. On the hub it also sets `mailboxstate_publish=publish-mwi-<peer>`
-  (the `asterisk-mwi` outbound-publish) and `mailbox_state=yes`.
+  `device_state=yes`, `device_state_filter=<regex of the peer's devices>`.
+  On the hub it also sets `mailboxstate_publish=publish-mwi-<peer>` (the
+  `asterisk-mwi` outbound-publish). On an office, the `asterisk-publication`
+  for the hub sets `mailbox_state=yes`, which permits the incoming mailbox
+  state.
 
-Each server publishes only the devices it hosts (the filter), so an update
-never echoes back. A busy-lamp hint for a colleague on another server names
-the colleague's device, and lights from the published state.
+In `res_pjsip_publish_asterisk`, `asterisk-publication`'s `device_state`,
+`device_state_filter` and `mailbox_state` govern what a server *accepts*; the
+outbound-publish's `@device_state_filter` governs what it *sends*. So each
+server sends only the devices it hosts and accepts from each peer only that
+peer's devices, and an update never echoes back. A server that hosts no
+devices uses `^$`, which matches nothing. A busy-lamp hint for a colleague on
+another server names the colleague's device, and lights from the published
+state.
 
 **astconf additions.** The `pjsip` package gains typed sections for
 `identify`, `outbound-publish`, `inbound-publication` and
@@ -149,8 +169,13 @@ for each device this server hosts: ring it when idle, otherwise `Busy()`. The
 caller's ring loses that one leg and keeps the rest.
 
 **Voicemail.** On the hub, `vm-<mailbox>` in `from-trunk` runs `VoiceMail`.
-On other servers, the no-answer step dials `vm-<mailbox>@trunk-<hub>`. The
-`no-answer` macro stays hand-written; astgen supplies the target.
+The `no-answer` macro stays hand-written; astgen supplies the target as the
+macro's second argument: `Macro(no-answer,${EXTEN},<target>)`. On an office
+the target is `PJSIP/vm-<mailbox>@trunk-<hub>`; on the hub it is
+`Local/vm-<mailbox>@from-trunk`, so the macro can dial `${ARG2}` everywhere.
+A person's mailbox is their extension when they have a voicemail code; with
+none, the macro gets no target. A role's mailbox is its `MailboxNumber`; a
+role with none ends in `Congestion()`, as roles do today.
 
 **Routing table.** Every server renders, in the phones' context, each
 extension homed elsewhere as `Dial(PJSIP/<ext>@trunk-<home>)`: offices call
@@ -158,9 +183,19 @@ each other directly. An office server falls through unknown extensions to the
 hub (`_X.` to `trunk-<hub>`). On the hub an unknown extension is invalid.
 
 **Paging.** The server where a page starts pages its local members and adds
-one leg `PJSIP/page-<group>@trunk-<peer>` for each other server that hosts
-members. That server's `from-trunk` has `page-<group>`, which pages its local
-members only and never relays.
+one relay leg for each other server that hosts members. The leg is
+`Local/page-relay-<group>-<peer>@astgen-page-relay`, whose extension dials
+`PJSIP/page-<group>@trunk-<peer>`. It goes through a local channel because
+`Page`'s `s` option skips a recipient that is not idle, and a trunk endpoint
+reads as in use while it carries any call. That server's `from-trunk` has
+`page-<group>`, which pages its local members only and never relays.
+
+`SIPAddHeader` does nothing on a PJSIP channel, so the per-server `Page`
+adds Alert-Info with its `b()` option:
+`b(astgen-page-alert^s^1(<alert>))`. astgen renders the `astgen-page-alert`
+subroutine, which sets `PJSIP_HEADER(add,Alert-Info)` on each PJSIP callee
+and skips local relay channels. The existing paging generator keeps
+`SIPAddHeader`.
 
 **No loops.** `from-trunk` holds only the extensions homed on this server and
 the `dev-`, `vm-` and `page-` entries. It never includes the routing table or
@@ -182,8 +217,10 @@ func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pj
 func ServerAORs(data *astorg.DataSet, p Placement, serverID string, base pjsip.AOR) []pjsip.AOR
 func ServerTrunks(p Placement, serverID, bindAddr string) TrunkConfig // endpoints, aors, identifies, transport, publications
 func ServerExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section
-func ServerTrunkExtensions(data *astorg.DataSet, p Placement, serverID string) dialplan.Section // from-trunk
+func ServerTrunkExtensions(data *astorg.DataSet, p Placement, serverID string, vmContext string) dialplan.Section // from-trunk
 func ServerPagingExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section
+func ServerPageRelayExtensions(data *astorg.DataSet, p Placement, serverID string) dialplan.Section // astgen-page-relay
+func PageAlertSection() dialplan.Section // astgen-page-alert predial subroutine
 func ServerPhones(data *astorg.DataSet, p Placement, serverID string, base dpma.Phone, contactsURL string) []dpma.Phone
 func ServerLines(data *astorg.DataSet, p Placement, serverID string) []dpma.Line
 func ServerMailboxes(data *astorg.DataSet, p Placement, serverID string, context string) voicemail.Section // hub only
@@ -204,9 +241,11 @@ the same input renders the same bytes, with maps iterated in sorted order.
   `astgen/testdata/<server>/`. A `-update` flag rewrites the files.
 - **Determinism.** Render the fixture twice and compare byte for byte.
 - **No regression for the current server.** A single-server fixture renders
-  through the per-server path, apart from the deliberate `SIP/` to `PJSIP/`
-  device rename, to the same extensions, endpoints, lines and mailboxes as the
-  existing generators.
+  through the per-server path to byte-identical endpoints, aors, lines, phones
+  and mailboxes; to the same paging apart from the `SIP/` to `PJSIP/` rename
+  and Alert-Info moving to the predial subroutine; and to phone extensions
+  with the same numbers, comments and devices. Extension actions differ on
+  purpose (Decisions 1 and 6), so they are not compared byte for byte.
 
 ## Out of scope
 
@@ -223,4 +262,34 @@ the same input renders the same bytes, with maps iterated in sorted order.
 Two pull requests to `scjalliance/astconf`, both for the maintainer's review:
 
 1. The four new `pjsip` section types.
-2. `Place` and the per-server generators, with the golden fixture.
+2. `Place` and the per-server generators, with the golden fixture. The
+   `dialplan` package gains what they need: `Busy`, `VoiceMail`, `Return`,
+   `PJSIP_HEADER`, `CHANNEL`, `Cat`, `Substring`, `DialExpr`, and a predial
+   target on `Page` (its `b()` option). A `Page` without one renders as
+   before.
+
+## Amendments (2026-10-13)
+
+Made while writing the implementation plan
+(`docs/superpowers/plans/2026-10-13-per-server-rendering.md`), after checking
+the Asterisk source. The sections above already read this way.
+
+1. **State publication.** `asterisk-publication`'s `device_state_filter`
+   filters incoming state, not outgoing. The own-device filter moved to the
+   outbound-publish as `@device_state_filter`, and the
+   `asterisk-publication` filter now holds the peer's devices.
+   `mailbox_state=yes` (permit incoming) moved from the hub to the receiving
+   offices. `server_uri` became `sip:trunk-<self>@<peer address>:5060;transport=tcp`,
+   because `res_pjsip_pubsub` finds the inbound-publication by the request
+   URI's user part.
+2. **Call waiting removed** in the per-server path (Decision 6, Emmaly,
+   2026-10-13).
+3. **Voicemail target** is the no-answer macro's second argument, with
+   `Local/vm-<mailbox>@from-trunk` on the hub.
+4. **Equivalence test scope** is spelled out under Testing.
+5. **Duplicates.** First claimant wins, and a fourth problem rule,
+   `device-conflict`, covers desk phones sharing a line on two servers.
+6. **dialplan helpers** are part of the second pull request (Delivery).
+7. **Paging on PJSIP.** Relay legs go through `Local/page-relay-...` so a busy
+   trunk is never skipped, and Alert-Info comes from a rendered predial
+   subroutine instead of `SIPAddHeader`.

@@ -2,6 +2,7 @@ package astorg
 
 // DataSet represents a complete dataset for an organization.
 type DataSet struct {
+	Servers      ServerList
 	Locations    LocationList
 	People       PersonList
 	PhoneRoles   PhoneRoleList
@@ -17,6 +18,7 @@ type DataSet struct {
 // Size returns the total number of records in the data set.
 func (d *DataSet) Size() int {
 	length := 0
+	length += len(d.Servers)
 	length += len(d.Locations)
 	length += len(d.People)
 	length += len(d.PhoneRoles)
@@ -33,6 +35,7 @@ func (d *DataSet) Size() int {
 // Lookup returns a lookup constructed from the data set.
 func (d *DataSet) Lookup() Lookup {
 	return Lookup{
+		ServerByID:        d.Servers.ByID(),
 		LocationByName:    d.Locations.ByName(),
 		PersonByEmail:     d.People.ByEmail(),
 		PersonByNumber:    d.People.ByExtension(),
@@ -50,6 +53,9 @@ func (d *DataSet) Lookup() Lookup {
 // Equal reports whether d and e are equal.
 func (d *DataSet) Equal(e *DataSet) bool {
 	// Compare slice lengths
+	if len(d.Servers) != len(e.Servers) {
+		return false
+	}
 	if len(d.Locations) != len(e.Locations) {
 		return false
 	}
@@ -82,6 +88,11 @@ func (d *DataSet) Equal(e *DataSet) bool {
 	}
 
 	// Compare slice values
+	for i := range d.Servers {
+		if !d.Servers[i].Equal(&e.Servers[i]) {
+			return false
+		}
+	}
 	for i := range d.Locations {
 		if !d.Locations[i].Equal(&e.Locations[i]) {
 			return false

@@ -36,7 +36,7 @@ Five inputs the spec implies but does not spell out, most likely to bite first. 
 1. **An extension homed on an office whose owner has no device there, only a softphone on the hub.** The ring must still dial the one remote leg, with no local `DEVICE_STATE` check. Test: `TestHomeExtensionOnlyRemoteDevices` in Task 11.
 2. **A role (or person) at an office with no server.** Its extension lives on the hub, every office routes it to the hub, and it has no remote devices. Test: `TestPlaceRoleAtOfficeWithoutServer` in Task 7, with the rendered routes in `TestServerExtensionsOffice` and `TestServerExtensionsHub` in Task 11.
 3. **A server with no locations, so it hosts no devices.** It still gets a trunk to every peer, and its device state filters match nothing rather than everything. Test: `TestServerTrunksServerWithoutDevices` in Task 9.
-4. **A paging group whose members are all on other servers.** A page from the hub reaches each office through one relay leg, and the hub's `from-trunk` has no `page-` entry for that group. Tests: `TestServerPagingAllMembersRemote` in Task 10 and `TestServerTrunkExtensionsNoPageWithoutMembers` in Task 11.
+4. **A paging group whose members are all on other servers.** A page from the hub reaches each office through one relay leg, each leg is a local channel so a busy trunk cannot drop it, and the hub's `from-trunk` has no `page-` entry for that group. Tests: `TestServerPagingAllMembersRemote` in Task 10 and `TestServerTrunkExtensionsNoPageWithoutMembers` in Task 11.
 5. **Server IDs that sort differently than server names.** Peers, trunk pairs, credentials and every per-peer section must follow ID order. The fixture's names (Hub, Quarry, Rock Den) sort differently than its IDs (den, hub, qry). Test: `TestPlaceSortsByID` in Task 7, and the peer order in `TestServerTrunksOffice` in Task 9.
 
 ## Spec decisions
@@ -48,17 +48,15 @@ These settle what the spec left open or got wrong. Each was checked against the 
 3. **The outbound-publish URI carries a user part.** `res_pjsip_pubsub.c` finds the inbound-publication by the request URI's user part (`ast_sorcery_retrieve_by_id(..., "inbound-publication", resource_name)`). Server S publishing to peer P sends to `sip:trunk-S@<P address>:5060;transport=tcp`, which matches P's `inbound-publication trunk-S`.
 4. **Voicemail target is the no-answer macro's second argument.** A home extension ends `Macro(no-answer,${EXTEN},<target>)`. On an office the target is `PJSIP/vm-<mailbox>@trunk-<hub>`; on the hub it is `Local/vm-<mailbox>@from-trunk`, so the hand-written macro can `Dial(${ARG2})` everywhere. A person's mailbox is their extension when they have a voicemail code; with none, the macro gets no target, as today. A role's mailbox is `MailboxNumber`; a role with none ends in `Congestion()`, as today.
 5. **"Same extensions" in the equivalence test.** Decision 1 of the spec changes how a ring treats busy devices, so dialplan actions cannot match the old generator. The test requires byte equality for endpoints, aors, lines, phones and mailboxes; byte equality for paging after renaming `SIP/` to `PJSIP/`; and, for phone extensions, the same numbers, comments and set of devices.
-6. **Call-waiting presence override is dropped.** The old `PhoneExtensions` rings every device when `CustomPresence` says call waiting is on. Spec step 2 adds a local device only when it is `NOT_INUSE`, so the per-server ring has no override. Flag this to Emmaly if it matters.
+6. **Call waiting is removed in the per-server path** (Emmaly's decision, 2026-10-13; spec Decisions). The old `PhoneExtensions` rings every device when `CustomPresence` says "with Call Waiting Enabled". The per-server ring adds a local device only when it is `NOT_INUSE`, so a busy device never rings and the override is not rendered. The old generators keep theirs.
 7. **Duplicate extensions.** The first claimant in data set order (people, then roles) keeps the extension; each later one is reported as `extension-duplicate` and left out.
 8. **One extra problem rule, `device-conflict`.** Two desk phones that share a line name (a person with desk phones at two offices) cannot be hosted on two servers under one endpoint name. The first phone in data set order wins; the later one is reported and left out.
-9. **dialplan additions.** The ring needs a dial string built at run time and `Busy()` and `VoiceMail()`. Task 6 adds `Busy`, `VoiceMail`, `Cat`, `Substring` and `DialExpr` to the dialplan package in PR 2.
+9. **dialplan additions.** The ring needs a dial string built at run time and `Busy()` and `VoiceMail()`; paging needs a predial subroutine. Task 6 adds `Busy`, `VoiceMail`, `Cat`, `Substring`, `DialExpr`, `Return`, `PJSIPHeader`, `Channel`, `PredialTarget` and a `Predial` field on `PageApp` to the dialplan package in PR 2. A `PageApp` with no `Predial` renders exactly as before, so the old paging output is unchanged.
 10. **No `ServerAuths`.** Phone auth sections carry passwords, so astgen does not render them per server. The node agent writes them from `Placement.HostedDevices`, as `_phone` contracts section 4 already describes for phone auth.
 11. **`bindAddr` is a host, not host and port.** `ServerTrunks` appends `:5060` with `net.JoinHostPort`.
 
-Open risks this plan does not fix (tell Emmaly; do not work around them silently):
-
-- `pageActions` keeps `SIPAddHeader(Alert-Info:...)` for parity with the old generator. `SIPAddHeader` does nothing on a PJSIP channel, so auto-answer paging on PJSIP needs a different mechanism (a predial handler that adds the header). That is a change to the paging design, not to this plan.
-- `Page(...,is)` skips a recipient whose device state is not `NOT_INUSE`. A relay leg's state is the trunk endpoint's state, so a trunk carrying another call may be skipped. Confirm on a test server before cutover.
+12. **Paging Alert-Info uses Page's `b()` predial option, and astgen renders the subroutine.** `SIPAddHeader` does nothing on a PJSIP channel. Every per-server `Page` for a group with an alert gets `b(astgen-page-alert^s^1(<alert>))`, which runs on each callee channel before it is dialed. `PageAlertSection()` renders the `astgen-page-alert` context, so the subroutine travels with the config instead of being hand-written on each node. It sets `PJSIP_HEADER(add,Alert-Info)` only when `CHANNEL(channeltype)` is `PJSIP`: a relay leg is a local channel with no SIP headers, and the receiving server adds the header for its own members. The old `PagingGroupExtensions` keeps `SIPAddHeader` and its output is unchanged.
+13. **Each paging relay leg is a local channel.** `Page`'s `s` option skips a recipient that is not idle, and a trunk endpoint reads as in use while it carries any call. The originating `Page` dials `Local/page-relay-<group>-<peer>@astgen-page-relay`, and `ServerPageRelayExtensions` renders that context, where each extension dials `PJSIP/page-<group>@trunk-<peer>`. A local channel reads idle unless the same relay is already running, so `s` still judges every local member device. Dropping `s` from the originating `Page` was the other choice; it was rejected because it would also page busy local phones. The relay context is separate from `from-trunk`, so the no-loop rule holds.
 
 ## File structure
 
@@ -79,13 +77,14 @@ Phase 2 (PR 2):
 
 | File | Responsibility |
 |---|---|
-| `dialplan/busy.go`, `dialplan/voicemail.go`, `dialplan/cat.go`, `dialplan/dialexpr.go`, `dialplan/perserver_test.go` | Applications and expressions the per-server dialplan needs |
+| `dialplan/busy.go`, `dialplan/voicemail.go`, `dialplan/cat.go`, `dialplan/dialexpr.go`, `dialplan/return.go`, `dialplan/pjsipheader.go`, `dialplan/channel.go`, `dialplan/predial.go`, `dialplan/perserver_test.go` | Applications, functions and expressions the per-server dialplan needs |
+| `dialplan/page.go` (modify) | `PageApp.Predial`, rendered as Page's `b()` option |
 | `astgen/names.go` | Section and context names shared by the trunk and dialplan code |
 | `astgen/placement.go`, `astgen/placement_test.go` | `Place`, `Placement`, `Problem`, `TrunkPair`, `Credential` |
 | `astgen/multiserver_test.go` | The multi-server fixture every Phase 2 test uses |
 | `astgen/server.go`, `astgen/server_test.go` | `ServerEndpoints`, `ServerAORs`, `ServerLines`, `ServerPhones`, `ServerMailboxes` |
 | `astgen/trunk.go`, `astgen/trunk_test.go` | `ServerTrunks`, `TrunkConfig` |
-| `astgen/serverpaging.go`, `astgen/serverpaging_test.go` | `ServerPagingExtensions` and the paging helpers |
+| `astgen/serverpaging.go`, `astgen/serverpaging_test.go` | `ServerPagingExtensions`, `ServerPageRelayExtensions`, `PageAlertSection` and the paging helpers |
 | `astgen/serverdialplan.go`, `astgen/serverdialplan_test.go` | `ServerExtensions`, `ServerTrunkExtensions` |
 | `astgen/golden_test.go`, `astgen/testdata/<server>/*` | Golden tree, `-update` flag, determinism, no-password check |
 | `astgen/equivalence_test.go` | Single-server equivalence with the old generators |
@@ -878,10 +877,11 @@ Phase 1 ends here. Do not start Task 6. Report to the controller: the five commi
 
 Phase 2 builds on Phase 1. Start it from the branch with Tasks 1 to 5 committed.
 
-### Task 6: dialplan applications for the per-server ring
+### Task 6: dialplan applications for the per-server ring and paging
 
 **Files:**
-- Create: `dialplan/busy.go`, `dialplan/voicemail.go`, `dialplan/cat.go`, `dialplan/dialexpr.go`
+- Create: `dialplan/busy.go`, `dialplan/voicemail.go`, `dialplan/cat.go`, `dialplan/dialexpr.go`, `dialplan/return.go`, `dialplan/pjsipheader.go`, `dialplan/channel.go`, `dialplan/predial.go`
+- Modify: `dialplan/page.go` (whole file; adds `Predial`)
 - Test: `dialplan/perserver_test.go`
 
 **Interfaces:**
@@ -892,6 +892,11 @@ Phase 2 builds on Phase 1. Start it from the branch with Tasks 1 to 5 committed.
   - `func Cat(parts ...Expression) CatExpr` (renders the parts joined, as a literal)
   - `func Substring(name Var, offset int) SubstringExpr` (renders `${name:offset}`)
   - `func DialExpr(target Expression, seconds int) DialExprApp` (renders `Dial(<target>[,seconds])`)
+  - `func Return() ReturnApp`
+  - `func PJSIPHeader(action, name string) PJSIPHeaderFunc` (a `Reference`, so it can be `Set`'s name)
+  - `func Channel(item string) ChannelFunc` (quoted when compared)
+  - `type PredialTarget struct { Context, Extension string; Priority int; Args []string }`, rendered `context^extension^priority(arg1^arg2)`
+  - `PageApp.Predial *PredialTarget`, rendered as `b(<target>)` after the other options; nil renders as before
 
 - [ ] **Step 1: Write the failing test**
 
@@ -982,11 +987,75 @@ func TestPerServerAppsInvalid(t *testing.T) {
 		})
 	}
 }
+
+// TestPagePredialAndHeaders renders Page's predial option and the pieces of
+// the subroutine it calls. A Page without a predial target renders as it
+// always has.
+func TestPagePredialAndHeaders(t *testing.T) {
+	plain := dialplan.Page(dialplan.PJSIP("fred"))
+	alerted := dialplan.Page(dialplan.PJSIP("fred"), dialplan.Device{Technology: "Local", Resource: "page-relay-500-den@astgen-page-relay"})
+	alerted.Predial = &dialplan.PredialTarget{Context: "astgen-page-alert", Extension: "s", Priority: 1, Args: []string{"intercom"}}
+	section := dialplan.Section{
+		Context: "test",
+		Extensions: []dialplan.Extension{
+			{Number: "500", Actions: []dialplan.Action{plain, alerted}},
+			{
+				Number: "s",
+				Actions: []dialplan.Action{
+					dialplan.ExecIf(
+						dialplan.Equal(dialplan.Channel("channeltype"), dialplan.String("PJSIP")),
+						dialplan.Set(dialplan.PJSIPHeader("add", "Alert-Info"), dialplan.Var("ARG1")),
+					),
+					dialplan.Return(),
+				},
+			},
+		},
+	}
+	var buf bytes.Buffer
+	if err := astconf.NewEncoder(&buf).Encode(&section); err != nil {
+		t.Fatalf("Encode() error: %v", err)
+	}
+	want := "[test]\n" +
+		"\n" +
+		"exten => 500,1,Page(PJSIP/fred,is)\n" +
+		"same => n,Page(PJSIP/fred&Local/page-relay-500-den@astgen-page-relay,isb(astgen-page-alert^s^1(intercom)))\n" +
+		"\n" +
+		"exten => s,1,ExecIf($[\"${CHANNEL(channeltype)}\"=\"PJSIP\"]?Set(PJSIP_HEADER(add,Alert-Info)=${ARG1}))\n" +
+		"same => n,Return()\n"
+	if got := buf.String(); got != want {
+		t.Errorf("Encode() =\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestPagePredialInvalid checks that a predial target that would break the
+// option is rejected.
+func TestPagePredialInvalid(t *testing.T) {
+	tests := []struct {
+		name   string
+		target dialplan.PredialTarget
+	}{
+		{name: "caret in argument", target: dialplan.PredialTarget{Context: "a", Extension: "s", Priority: 1, Args: []string{"x^y"}}},
+		{name: "paren in context", target: dialplan.PredialTarget{Context: "a)", Extension: "s", Priority: 1}},
+		{name: "priority zero", target: dialplan.PredialTarget{Context: "a", Extension: "s"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			page := dialplan.Page(dialplan.PJSIP("fred"))
+			target := tt.target
+			page.Predial = &target
+			section := dialplan.Section{Context: "test", Extensions: []dialplan.Extension{{Number: "1", Actions: []dialplan.Action{page}}}}
+			var buf bytes.Buffer
+			if err := astconf.NewEncoder(&buf).Encode(&section); err == nil {
+				t.Fatalf("Encode() succeeded, want an error:\n%s", buf.String())
+			}
+		})
+	}
+}
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `go test ./dialplan -run TestPerServerApps -v`
+Run: `go test ./dialplan -run 'TestPerServer|TestPagePredial' -v`
 Expected: FAIL to compile with `undefined: dialplan.Cat` (and the other new names).
 
 - [ ] **Step 3: Write the implementation**
@@ -1170,21 +1239,304 @@ func (dial DialExprApp) Validate() error {
 }
 ```
 
+Create `dialplan/return.go`:
+
+```go
+package dialplan
+
+// Return returns a dialplan application that returns from a subroutine.
+func Return() ReturnApp {
+	return ReturnApp{}
+}
+
+// ReturnApp is a dialplan application that returns from a subroutine
+// entered with Gosub or a predial option.
+//
+// https://docs.asterisk.org/Asterisk_22_Documentation/API_Documentation/Dialplan_Applications/Return/
+type ReturnApp struct{}
+
+// App returns the assembled application call.
+func (app ReturnApp) App() AppCall {
+	return AppCall{Name: "Return"}
+}
+```
+
+Create `dialplan/pjsipheader.go`:
+
+```go
+package dialplan
+
+// PJSIPHeader returns a dialplan function that reads or changes a SIP
+// header on a PJSIP channel. Action is "read", "add", "update" or
+// "remove".
+func PJSIPHeader(action, name string) PJSIPHeaderFunc {
+	return PJSIPHeaderFunc{
+		Action: action,
+		Name:   name,
+	}
+}
+
+// PJSIPHeaderFunc is a dialplan function that reads or changes a SIP header
+// on a PJSIP channel.
+//
+// https://docs.asterisk.org/Asterisk_22_Documentation/API_Documentation/Dialplan_Functions/PJSIP_HEADER/
+type PJSIPHeaderFunc struct {
+	Action string
+	Name   string
+}
+
+// Func returns the assembled function call.
+func (f PJSIPHeaderFunc) Func() FuncCall {
+	return FuncCall{
+		Name: "PJSIP_HEADER",
+		Args: []string{f.Action, f.Name},
+	}
+}
+
+// Expr returns the function as an expression.
+func (f PJSIPHeaderFunc) Expr() ExprDef {
+	return ExprDef{Content: f.Func().String()}
+}
+
+// Ref returns a reference to the function, for use as the name in Set.
+func (f PJSIPHeaderFunc) Ref() string {
+	return f.Func().String()
+}
+
+// Validate returns an error if the action or header name contains invalid
+// characters.
+func (f PJSIPHeaderFunc) Validate() error {
+	if err := errorIfAny("pjsip header action", f.Action, invalidArgChars); err != nil {
+		return err
+	}
+	return errorIfAny("pjsip header name", f.Name, invalidArgChars)
+}
+```
+
+Create `dialplan/channel.go`:
+
+```go
+package dialplan
+
+// Channel returns a dialplan function that reads an item of information
+// about the current channel, such as "channeltype".
+func Channel(item string) ChannelFunc {
+	return ChannelFunc{Item: item}
+}
+
+// ChannelFunc is a dialplan function that reads information about the
+// current channel.
+//
+// https://docs.asterisk.org/Asterisk_22_Documentation/API_Documentation/Dialplan_Functions/CHANNEL/
+type ChannelFunc struct {
+	Item string
+}
+
+// Func returns the assembled function call.
+func (f ChannelFunc) Func() FuncCall {
+	return FuncCall{
+		Name: "CHANNEL",
+		Args: []string{f.Item},
+	}
+}
+
+// Expr returns the function as an expression.
+func (f ChannelFunc) Expr() ExprDef {
+	return ExprDef{Content: f.Func().String()}
+}
+
+// QuotedContent returns true, which indicates that the function call should
+// be wrapped in double quotes when compared.
+func (f ChannelFunc) QuotedContent() bool {
+	return true
+}
+
+// Validate returns an error if the item contains invalid characters.
+func (f ChannelFunc) Validate() error {
+	return errorIfAny("channel item", f.Item, invalidArgChars)
+}
+```
+
+Create `dialplan/predial.go`:
+
+```go
+package dialplan
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+// PredialTarget is a subroutine that an application runs on each callee
+// channel before dialing it, such as the target of Page's b() option.
+//
+// It is written as context^extension^priority(arg1^arg2), the form Asterisk
+// uses inside an option, where commas would end the option early.
+type PredialTarget struct {
+	Context   string
+	Extension string
+	Priority  int // Should be >= 1
+	Args      []string
+}
+
+// String returns the target in option form.
+func (t PredialTarget) String() string {
+	var b strings.Builder
+	b.WriteString(t.Context)
+	b.WriteString("^")
+	b.WriteString(t.Extension)
+	b.WriteString("^")
+	b.WriteString(strconv.Itoa(t.Priority))
+	if len(t.Args) > 0 {
+		b.WriteString("(")
+		b.WriteString(strings.Join(t.Args, "^"))
+		b.WriteString(")")
+	}
+	return b.String()
+}
+
+// Validate returns an error if the priority is below one, or if any part
+// contains a character that would change the meaning of the option.
+func (t PredialTarget) Validate() error {
+	if t.Priority < 1 {
+		return fmt.Errorf("predial priority must be at least 1, got %d", t.Priority)
+	}
+	if err := errorIfAny("predial context", t.Context, invalidArgChars+"^"); err != nil {
+		return err
+	}
+	if err := errorIfAny("predial extension", t.Extension, invalidArgChars+"^"); err != nil {
+		return err
+	}
+	for _, arg := range t.Args {
+		if err := errorIfAny("predial argument", arg, invalidArgChars+"^"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+```
+
+Replace the whole of `dialplan/page.go` with (the struct's comment column moves because gofmt realigns it for the longer `*PredialTarget` type; the only behavior change is the `Predial` field):
+
+```go
+package dialplan
+
+import (
+	"strconv"
+	"strings"
+)
+
+// http://www.asteriskdocs.org/en/3rd_Edition/asterisk-book-html-chunk/AdditionalConfig_id257169.html
+
+// Page returns a dialplan application that pages a set of devices.
+func Page(recipients ...Device) PageApp {
+	return PageApp{
+		Recipients: recipients,
+	}
+}
+
+// PageApp is a dialplan application that pages a set of devices.
+//
+// https://wiki.asterisk.org/wiki/display/AST/Asterisk+16+Application_Page
+type PageApp struct {
+	Recipients       []Device
+	FullDuplex       bool           //  d: Enable two-way audio for all recipients
+	Forward          bool           // !i: Forward the page to forwarded recipients
+	Quiet            bool           //  q: Don't present a paging beep to recipients
+	Record           bool           //  r: Record the page to a file
+	InUse            bool           // !s: Include recipients with a phone state other than NOT_INUSE
+	Announcement     string         //  A: Play an announcement to all recipients
+	AnnounceToCaller bool           //  x: Play an announcement to the caller as well
+	Timeout          int            // Number of seconds to attempt a call before giving up
+	Predial          *PredialTarget // b: Run a subroutine on each callee channel before dialing it
+}
+
+// App returns the assembled application call.
+func (app PageApp) App() AppCall {
+	devices := make([]string, 0, len(app.Recipients))
+	for _, device := range app.Recipients {
+		devices = append(devices, device.String())
+	}
+	call := AppCall{
+		Name: "Page",
+		Args: []string{strings.Join(devices, "&")},
+	}
+	options := app.Options()
+	if len(options) == 0 && app.Timeout <= 0 {
+		return call
+	}
+	call.Args = append(call.Args, options)
+	if app.Timeout > 0 {
+		call.Args = append(call.Args, strconv.Itoa(app.Timeout))
+	}
+	return call
+}
+
+// Options returns the options string for the page.
+func (app PageApp) Options() string {
+	var opts string
+	if app.FullDuplex {
+		opts += "d"
+	}
+	if !app.Forward {
+		opts += "i"
+	}
+	if app.Quiet {
+		opts += "q"
+	}
+	if app.Record {
+		opts += "r"
+	}
+	if !app.InUse {
+		opts += "s"
+	}
+	if app.Announcement != "" {
+		opts += "A(" + app.Announcement + ")"
+		if app.AnnounceToCaller {
+			opts += "n"
+		}
+	}
+	if app.Predial != nil {
+		opts += "b(" + app.Predial.String() + ")"
+	}
+	return opts
+}
+
+// Validate returns an error if any recipient or the announcement is invalid.
+func (app PageApp) Validate() error {
+	for _, device := range app.Recipients {
+		if err := device.Validate(); err != nil {
+			return err
+		}
+	}
+	if err := errorIfAny("page announcement", app.Announcement, invalidArgChars); err != nil {
+		return err
+	}
+	if app.Predial != nil {
+		return app.Predial.Validate()
+	}
+	return nil
+}
+```
+
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `go test ./dialplan -v -run 'TestPerServer' && gofmt -l . && go vet ./dialplan && go test ./dialplan`
-Expected: `TestPerServerApps` and the four `TestPerServerAppsInvalid` subtests PASS; the existing dialplan tests still pass.
+Run: `go test ./dialplan -v -run 'TestPerServer|TestPagePredial' && gofmt -l . && go vet ./dialplan && go test ./dialplan`
+Expected: `TestPerServerApps`, `TestPerServerAppsInvalid`, `TestPagePredialAndHeaders` and `TestPagePredialInvalid` PASS. The existing dialplan tests still pass, including `Example`, and `TestPagePredialAndHeaders` shows a `Page` with no predial still renders `Page(PJSIP/fred,is)`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add dialplan/busy.go dialplan/voicemail.go dialplan/cat.go dialplan/dialexpr.go dialplan/perserver_test.go
+git add dialplan/busy.go dialplan/voicemail.go dialplan/cat.go dialplan/dialexpr.go dialplan/return.go dialplan/pjsipheader.go dialplan/channel.go dialplan/predial.go dialplan/page.go dialplan/perserver_test.go
 git commit -F - <<'EOF'
-feat(dialplan): add Busy, VoiceMail, Cat, Substring and DialExpr
+feat(dialplan): add the pieces the per-server dialplan needs
 
 The per-server ring builds its dial string in a channel variable at run
 time, so it needs to append to a variable, read part of it, and dial an
-expression rather than a fixed device list.
+expression rather than a fixed device list. Paging on PJSIP adds its
+Alert-Info header in a predial subroutine, so Page gains a predial target
+and the dialplan gains Return, PJSIP_HEADER and CHANNEL.
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01SVDvjArCwFD9e1ndJktmVq
@@ -1207,7 +1559,7 @@ EOF
   - `func PairID(a, b string) string`
   - `type Problem struct { Rule, Kind, ID, Detail string }`, rules `RuleLocationNoServer`, `RuleServerMissing`, `RuleExtensionDuplicate`, `RuleDeviceConflict`
   - `type TrunkPair struct { ID, A, B string }`, `type Credential struct { Kind, ID, Section string }`
-  - unexported, in `names.go`: `TrunkContext = "from-trunk"`, `TrunkTransport = "transport-tcp"`, `trunkPort`, `trunkName(peer)`, `trunkAuthName(peer)`, `publishName(peer)`, `publishMWIName(peer)`; in `placement.go`: `sortedUnique([]string) []string`
+  - unexported, in `names.go`: `TrunkContext = "from-trunk"`, `TrunkTransport = "transport-tcp"`, `trunkPort`, `trunkName(peer)`, `trunkAuthName(peer)`, `publishName(peer)`, `publishMWIName(peer)`, and the exported `PageAlertContext = "astgen-page-alert"`, `PageRelayContext = "astgen-page-relay"` (used from Task 10); in `placement.go`: `sortedUnique([]string) []string`
   - test helpers: `multiServerData() *astorg.DataSet` and `place(t, data) (astgen.Placement, []astgen.Problem)`
 
 Device names are pjsip endpoint names: a desk phone's line name (`lineUsername`, the assigned person's or role's username, else the MAC) and a softphone's username. An extension rings the device named after its owner's username, if one is hosted, and its owner's hosted softphones. This matches the device list the old `PhoneExtensions` builds.
@@ -1633,6 +1985,16 @@ func publishName(peer string) string {
 func publishMWIName(peer string) string {
 	return "publish-mwi-" + peer
 }
+
+// PageAlertContext is the dialplan context of the subroutine that adds a
+// paging group's Alert-Info header to each paged PJSIP device.
+// PageAlertSection renders it.
+const PageAlertContext = "astgen-page-alert"
+
+// PageRelayContext is the dialplan context that holds one relay extension
+// for each paging group and each other server with members of it.
+// ServerPageRelayExtensions renders it.
+const PageRelayContext = "astgen-page-relay"
 ```
 
 - [ ] **Step 5: Write `Place`**
@@ -2616,11 +2978,15 @@ EOF
 
 **Interfaces:**
 - Consumes: `Placement.Hosts` (Task 7), `trunkName`, `sortedUnique` (Task 7), `lineUsername` (existing).
+- Consumes also: `PageAlertContext`, `PageRelayContext` (Task 7); `dialplan.PredialTarget`, `PageApp.Predial`, `dialplan.Channel`, `dialplan.PJSIPHeader`, `dialplan.Return` (Task 6).
 - Produces:
   - `func ServerPagingExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section`
+  - `func ServerPageRelayExtensions(data *astorg.DataSet, p Placement, serverID string) dialplan.Section` (context `astgen-page-relay`)
+  - `func PageAlertSection() dialplan.Section` (context `astgen-page-alert`)
+  - unexported `pageRelayName(group, peer string) string`
   - unexported, used by Task 11: `pagingMembers(data *astorg.DataSet) map[string][]string`, `splitMembers(p Placement, serverID string, names []string) (local []dialplan.Device, peers []string)`, `pageActions(group astorg.PagingGroup, devices []dialplan.Device) []dialplan.Action`
 
-`pagingMembers` repeats the three membership steps of `PagingGroupExtensions` with device names instead of `SIP/` devices. It is a copy rather than a refactor so the old generator stays untouched; Task 13 proves the two agree.
+`pagingMembers` repeats the three membership steps of `PagingGroupExtensions` with device names instead of `SIP/` devices. It is a copy rather than a refactor so the old generator stays untouched; Task 13 proves the two agree. `pageActions` differs from the old actions in one way: the Alert-Info header moves from `SIPAddHeader` to the predial subroutine (Spec decision 12). Relay legs go through `astgen-page-relay` (Spec decision 13).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2637,7 +3003,8 @@ import (
 )
 
 // TestServerPagingAllMembersRemote checks a paging group with no members on
-// the hub. A page from the hub reaches each office through one relay leg.
+// the hub. A page from the hub reaches each office through one relay leg,
+// and each leg is a local channel, not the trunk.
 func TestServerPagingAllMembersRemote(t *testing.T) {
 	data := multiServerData()
 	p, _ := place(t, data)
@@ -2648,33 +3015,91 @@ func TestServerPagingAllMembersRemote(t *testing.T) {
 		"; All Call\n" +
 		"exten => 500,1,Noop(Paging All Call)\n" +
 		"same => n,Playback(beep)\n" +
-		"same => n,SIPAddHeader(Alert-Info:intercom)\n" +
 		"same => n,Set(CALLERID(name)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(name)}:Intercom)})\n" +
 		"same => n,Set(CALLERID(num)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(num)}:Intercom)})\n" +
-		"same => n,Page(PJSIP/page-500@trunk-den&PJSIP/page-500@trunk-qry,is)\n" +
+		"same => n,Page(Local/page-relay-500-den@astgen-page-relay&Local/page-relay-500-qry@astgen-page-relay,isb(astgen-page-alert^s^1(intercom)))\n" +
 		"same => n,Hangup()\n"
 	if got != want {
 		t.Errorf("ServerPagingExtensions(hub) rendered:\n%s\nwant:\n%s", got, want)
 	}
 }
 
-// TestServerPagingOffice checks that an office pages its local members and
-// relays to the one other office that hosts members.
+// TestServerPagingOffice checks that an office pages its local members
+// directly and relays to the one other office that hosts members.
 func TestServerPagingOffice(t *testing.T) {
 	data := multiServerData()
 	p, _ := place(t, data)
 	section := astgen.ServerPagingExtensions(data, p, "den", "paging")
 	got := render(t, &section)
-	want := "same => n,Page(PJSIP/barney&PJSIP/lobby&PJSIP/page-500@trunk-qry,is)\n"
+	want := "same => n,Page(PJSIP/barney&PJSIP/lobby&Local/page-relay-500-qry@astgen-page-relay,isb(astgen-page-alert^s^1(intercom)))\n"
 	if !strings.Contains(got, want) {
 		t.Errorf("ServerPagingExtensions(den) rendered:\n%s\nwant it to contain:\n%s", got, want)
+	}
+	if strings.Contains(got, "SIPAddHeader") {
+		t.Errorf("ServerPagingExtensions(den) uses SIPAddHeader, which does nothing on PJSIP:\n%s", got)
+	}
+}
+
+// TestServerPagingNoAlert checks that a paging group with no alert pages
+// without the predial subroutine.
+func TestServerPagingNoAlert(t *testing.T) {
+	data := multiServerData()
+	data.PagingGroups[0].Alert = ""
+	p, _ := place(t, data)
+	section := astgen.ServerPagingExtensions(data, p, "den", "paging")
+	want := "same => n,Page(PJSIP/barney&PJSIP/lobby&Local/page-relay-500-qry@astgen-page-relay,is)\n"
+	if got := render(t, &section); !strings.Contains(got, want) {
+		t.Errorf("ServerPagingExtensions(den) rendered:\n%s\nwant it to contain:\n%s", got, want)
+	}
+}
+
+// TestServerPageRelayExtensions checks the relay context. Each relay
+// extension dials one server's from-trunk page- entry over the trunk; a
+// server with no relays renders an empty context.
+func TestServerPageRelayExtensions(t *testing.T) {
+	data := multiServerData()
+	p, _ := place(t, data)
+
+	hub := astgen.ServerPageRelayExtensions(data, p, "hub")
+	got := render(t, &hub)
+	want := "[astgen-page-relay]\n" +
+		"\n" +
+		"; Relay All Call to den\n" +
+		"exten => page-relay-500-den,1,Dial(PJSIP/page-500@trunk-den)\n" +
+		"\n" +
+		"; Relay All Call to qry\n" +
+		"exten => page-relay-500-qry,1,Dial(PJSIP/page-500@trunk-qry)\n"
+	if got != want {
+		t.Errorf("ServerPageRelayExtensions(hub) rendered:\n%s\nwant:\n%s", got, want)
+	}
+
+	data.Locations[1].PagingGroups = nil // Den's phones leave the group
+	p, _ = place(t, data)
+	qry := astgen.ServerPageRelayExtensions(data, p, "qry")
+	if got, want := render(t, &qry), "[astgen-page-relay]\n"; got != want {
+		t.Errorf("ServerPageRelayExtensions(qry) with no remote members rendered:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestPageAlertSection checks the predial subroutine that adds Alert-Info
+// on PJSIP callee channels only.
+func TestPageAlertSection(t *testing.T) {
+	section := astgen.PageAlertSection()
+	got := render(t, &section)
+	want := "[astgen-page-alert]\n" +
+		"\n" +
+		"; Add a paging group's Alert-Info header to a paged phone\n" +
+		"exten => s,1,ExecIf($[\"${CHANNEL(channeltype)}\"=\"PJSIP\"]?Set(PJSIP_HEADER(add,Alert-Info)=${ARG1}))\n" +
+		"same => n,Return()\n"
+	if got != want {
+		t.Errorf("PageAlertSection() rendered:\n%s\nwant:\n%s", got, want)
 	}
 }
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `go test ./astgen -run TestServerPaging -v`
+Run: `go test ./astgen -run 'TestServerPag|TestPageAlert' -v`
 Expected: FAIL to compile with `undefined: astgen.ServerPagingExtensions`.
 
 - [ ] **Step 3: Write the implementation**
@@ -2694,8 +3119,14 @@ import (
 
 // ServerPagingExtensions generates the paging group extensions for
 // serverID. A page reaches the members that serverID hosts directly, and
-// reaches the members on each other server through one relay leg to that
-// server's from-trunk page- entry.
+// reaches the members on each other server through one relay leg per
+// server.
+//
+// Each relay leg is a local channel into PageRelayContext rather than the
+// trunk itself. Page's "s" option skips a recipient that is not idle, and a
+// trunk endpoint reads as in use while it carries any call, so a direct
+// trunk leg could be skipped. A local channel is idle unless the same relay
+// is already running, so "s" judges only the local member devices.
 func ServerPagingExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section {
 	section := dialplan.Section{Context: context}
 	members := pagingMembers(data)
@@ -2703,7 +3134,10 @@ func ServerPagingExtensions(data *astorg.DataSet, p Placement, serverID string, 
 		local, peers := splitMembers(p, serverID, members[group.Extension])
 		devices := local
 		for _, peer := range peers {
-			devices = append(devices, dialplan.PJSIP("page-"+group.Extension+"@"+trunkName(peer)))
+			devices = append(devices, dialplan.Device{
+				Technology: "Local",
+				Resource:   pageRelayName(group.Extension, peer) + "@" + PageRelayContext,
+			})
 		}
 		section.Extensions = append(section.Extensions, dialplan.Extension{
 			Comment: group.Name,
@@ -2712,6 +3146,59 @@ func ServerPagingExtensions(data *astorg.DataSet, p Placement, serverID string, 
 		})
 	}
 	return section
+}
+
+// ServerPageRelayExtensions generates PageRelayContext for serverID: one
+// extension for each paging group and each other server that hosts members
+// of it, which carries the page over the trunk to that server's from-trunk
+// page- entry.
+func ServerPageRelayExtensions(data *astorg.DataSet, p Placement, serverID string) dialplan.Section {
+	section := dialplan.Section{Context: PageRelayContext}
+	members := pagingMembers(data)
+	for _, group := range data.PagingGroups {
+		_, peers := splitMembers(p, serverID, members[group.Extension])
+		for _, peer := range peers {
+			section.Extensions = append(section.Extensions, dialplan.Extension{
+				Comment: fmt.Sprintf("Relay %s to %s", group.Name, peer),
+				Number:  pageRelayName(group.Extension, peer),
+				Actions: []dialplan.Action{
+					dialplan.Dial(dialplan.PJSIP("page-"+group.Extension+"@"+trunkName(peer)), 0),
+				},
+			})
+		}
+	}
+	return section
+}
+
+// PageAlertSection generates the subroutine in PageAlertContext that Page
+// runs on each callee channel before dialing it. It adds the paging
+// group's Alert-Info header, passed as the first argument, so the phone
+// answers the page on its own. A relay leg is a local channel with no SIP
+// headers, so the header is added only on a PJSIP channel; the receiving
+// server adds it for its own members.
+func PageAlertSection() dialplan.Section {
+	return dialplan.Section{
+		Context: PageAlertContext,
+		Extensions: []dialplan.Extension{
+			{
+				Comment: "Add a paging group's Alert-Info header to a paged phone",
+				Number:  "s",
+				Actions: []dialplan.Action{
+					dialplan.ExecIf(
+						dialplan.Equal(dialplan.Channel("channeltype"), dialplan.String("PJSIP")),
+						dialplan.Set(dialplan.PJSIPHeader("add", "Alert-Info"), dialplan.Var("ARG1")),
+					),
+					dialplan.Return(),
+				},
+			},
+		},
+	}
+}
+
+// pageRelayName returns the name of the relay extension that carries a
+// page for the group with the given extension to peer.
+func pageRelayName(group, peer string) string {
+	return "page-relay-" + group + "-" + peer
 }
 
 // splitMembers divides the members of a paging group into the devices that
@@ -2800,7 +3287,9 @@ func pagingMembers(data *astorg.DataSet) map[string][]string {
 }
 
 // pageActions returns the actions of a paging group extension that pages
-// the given devices. They match the actions PagingGroupExtensions writes.
+// the given devices. They follow PagingGroupExtensions, except that the
+// Alert-Info header is added on each callee channel through
+// PageAlertContext, because SIPAddHeader has no effect on a PJSIP channel.
 func pageActions(group astorg.PagingGroup, devices []dialplan.Device) []dialplan.Action {
 	name := dialplan.CallerID("name")
 	number := dialplan.CallerID("num")
@@ -2810,11 +3299,6 @@ func pageActions(group astorg.PagingGroup, devices []dialplan.Device) []dialplan
 	actions := []dialplan.Action{
 		dialplan.Noop(fmt.Sprintf("Paging %s", group.Name)),
 		dialplan.Playback("beep"),
-	}
-	if group.Alert != "" {
-		actions = append(actions, dialplan.SIPAddHeader("Alert-Info", group.Alert))
-	}
-	actions = append(actions,
 		dialplan.Set(name, dialplan.IfElse(
 			dialplan.GreaterThan(dialplan.Len(number), zero),
 			name,
@@ -2825,9 +3309,18 @@ func pageActions(group astorg.PagingGroup, devices []dialplan.Device) []dialplan
 			number,
 			intercom,
 		)),
-	)
+	}
 	if len(devices) > 0 {
-		actions = append(actions, dialplan.Page(devices...))
+		page := dialplan.Page(devices...)
+		if group.Alert != "" {
+			page.Predial = &dialplan.PredialTarget{
+				Context:   PageAlertContext,
+				Extension: "s",
+				Priority:  1,
+				Args:      []string{group.Alert},
+			}
+		}
+		actions = append(actions, page)
 	}
 	actions = append(actions, dialplan.Hangup())
 	return actions
@@ -2836,8 +3329,8 @@ func pageActions(group astorg.PagingGroup, devices []dialplan.Device) []dialplan
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `go test ./astgen -run TestServerPaging -v && gofmt -l . && go vet ./astgen`
-Expected: both tests PASS, including `TestServerPagingAllMembersRemote` (Review Focus 4).
+Run: `go test ./astgen -run 'TestServerPag|TestPageAlert' -v && gofmt -l . && go vet ./astgen`
+Expected: five tests PASS, including `TestServerPagingAllMembersRemote` (Review Focus 4). In the expected strings, the predial argument separator is `^` and the option closes with three parentheses: one for `1(...)`, one for `b(...)`, one for `Page(...)`.
 
 - [ ] **Step 5: Commit**
 
@@ -2848,6 +3341,9 @@ feat(astgen): page across servers
 
 A page reaches the members a server hosts directly and the members on
 each other server through one relay leg to that server's from-trunk.
+Relay legs are local channels, so a busy trunk is never skipped, and the
+Alert-Info header is added in a rendered predial subroutine, since
+SIPAddHeader has no effect on PJSIP.
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01SVDvjArCwFD9e1ndJktmVq
@@ -3013,10 +3509,9 @@ func TestServerTrunkExtensionsOffice(t *testing.T) {
 		"; All Call\n" +
 		"exten => page-500,1,Noop(Paging All Call)\n" +
 		"same => n,Playback(beep)\n" +
-		"same => n,SIPAddHeader(Alert-Info:intercom)\n" +
 		"same => n,Set(CALLERID(name)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(name)}:Intercom)})\n" +
 		"same => n,Set(CALLERID(num)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(num)}:Intercom)})\n" +
-		"same => n,Page(PJSIP/000fd3000003&PJSIP/fred,is)\n" +
+		"same => n,Page(PJSIP/000fd3000003&PJSIP/fred,isb(astgen-page-alert^s^1(intercom)))\n" +
 		"same => n,Hangup()\n"
 	if got != want {
 		t.Errorf("ServerTrunkExtensions(qry) rendered:\n%s\nwant:\n%s", got, want)
@@ -3340,7 +3835,7 @@ func ServerTrunkExtensions(data *astorg.DataSet, p Placement, serverID string, v
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `go test ./astgen -run 'TestServerExtensions|TestHomeExtension|TestServerTrunkExtensions|TestServerPaging' -v && gofmt -l . && go vet ./astgen && go test ./astgen`
+Run: `go test ./astgen -run 'TestServerExtensions|TestHomeExtension|TestServerTrunkExtensions|TestServerPag' -v && gofmt -l . && go vet ./astgen && go test ./astgen`
 Expected: every listed test PASSes, including `TestHomeExtensionOnlyRemoteDevices` (Review Focus 1) and `TestServerTrunkExtensionsNoPageWithoutMembers` (Review Focus 4). `TestServerTrunkExtensionsNoLoops` passes because no `from-trunk` line dials `PJSIP/<x>@trunk-`.
 
 - [ ] **Step 5: Commit**
@@ -3367,7 +3862,7 @@ EOF
 - Create (generated, then reviewed): `astgen/testdata/den/{extensions.conf,pjsip.conf,res_digium_phone.conf,voicemail.conf}`, the same four under `astgen/testdata/hub/` and `astgen/testdata/qry/`
 
 **Interfaces:**
-- Consumes: every `Server*` function and `Place` (Tasks 7 to 11), `multiServerData`, `render`.
+- Consumes: every `Server*` function, `PageAlertSection` and `Place` (Tasks 7 to 11), `multiServerData`, `render`.
 - Produces: the `-update` flag (`go test ./astgen -run TestGolden -update`) and `renderServer(t, data, p, serverID) map[string]string`.
 
 - [ ] **Step 1: Write the tests**
@@ -3441,6 +3936,8 @@ func renderServer(t *testing.T, data *astorg.DataSet, p astgen.Placement, server
 
 	extensions := astgen.ServerExtensions(data, p, serverID, "from-internal")
 	paging := astgen.ServerPagingExtensions(data, p, serverID, "paging")
+	relay := astgen.ServerPageRelayExtensions(data, p, serverID)
+	alert := astgen.PageAlertSection()
 	fromTrunk := astgen.ServerTrunkExtensions(data, p, serverID, "default")
 
 	phones := astgen.ServerPhones(data, p, serverID, dpma.Phone{}, "https://contacts.example.com/")
@@ -3457,7 +3954,7 @@ func renderServer(t *testing.T, data *astorg.DataSet, p astgen.Placement, server
 
 	return map[string]string{
 		"pjsip.conf":            render(t, pjsipValues...),
-		"extensions.conf":       render(t, &extensions, &paging, &fromTrunk),
+		"extensions.conf":       render(t, &extensions, &paging, &relay, &alert, &fromTrunk),
 		"res_digium_phone.conf": render(t, dpmaValues...),
 		"voicemail.conf":        render(t, &mailboxes),
 	}
@@ -3611,11 +4108,21 @@ exten => _X.,1,Dial(PJSIP/${EXTEN}@trunk-hub)
 ; All Call
 exten => 500,1,Noop(Paging All Call)
 same => n,Playback(beep)
-same => n,SIPAddHeader(Alert-Info:intercom)
 same => n,Set(CALLERID(name)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(name)}:Intercom)})
 same => n,Set(CALLERID(num)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(num)}:Intercom)})
-same => n,Page(PJSIP/barney&PJSIP/lobby&PJSIP/page-500@trunk-qry,is)
+same => n,Page(PJSIP/barney&PJSIP/lobby&Local/page-relay-500-qry@astgen-page-relay,isb(astgen-page-alert^s^1(intercom)))
 same => n,Hangup()
+
+[astgen-page-relay]
+
+; Relay All Call to qry
+exten => page-relay-500-qry,1,Dial(PJSIP/page-500@trunk-qry)
+
+[astgen-page-alert]
+
+; Add a paging group's Alert-Info header to a paged phone
+exten => s,1,ExecIf($["${CHANNEL(channeltype)}"="PJSIP"]?Set(PJSIP_HEADER(add,Alert-Info)=${ARG1}))
+same => n,Return()
 
 [from-trunk]
 
@@ -3648,10 +4155,9 @@ same => n,Hangup()
 ; All Call
 exten => page-500,1,Noop(Paging All Call)
 same => n,Playback(beep)
-same => n,SIPAddHeader(Alert-Info:intercom)
 same => n,Set(CALLERID(name)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(name)}:Intercom)})
 same => n,Set(CALLERID(num)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(num)}:Intercom)})
-same => n,Page(PJSIP/barney&PJSIP/lobby,is)
+same => n,Page(PJSIP/barney&PJSIP/lobby,isb(astgen-page-alert^s^1(intercom)))
 same => n,Hangup()
 ```
 
@@ -3845,11 +4351,24 @@ same => n,Congestion()
 ; All Call
 exten => 500,1,Noop(Paging All Call)
 same => n,Playback(beep)
-same => n,SIPAddHeader(Alert-Info:intercom)
 same => n,Set(CALLERID(name)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(name)}:Intercom)})
 same => n,Set(CALLERID(num)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(num)}:Intercom)})
-same => n,Page(PJSIP/page-500@trunk-den&PJSIP/page-500@trunk-qry,is)
+same => n,Page(Local/page-relay-500-den@astgen-page-relay&Local/page-relay-500-qry@astgen-page-relay,isb(astgen-page-alert^s^1(intercom)))
 same => n,Hangup()
+
+[astgen-page-relay]
+
+; Relay All Call to den
+exten => page-relay-500-den,1,Dial(PJSIP/page-500@trunk-den)
+
+; Relay All Call to qry
+exten => page-relay-500-qry,1,Dial(PJSIP/page-500@trunk-qry)
+
+[astgen-page-alert]
+
+; Add a paging group's Alert-Info header to a paged phone
+exten => s,1,ExecIf($["${CHANNEL(channeltype)}"="PJSIP"]?Set(PJSIP_HEADER(add,Alert-Info)=${ARG1}))
+same => n,Return()
 
 [from-trunk]
 
@@ -4084,11 +4603,21 @@ exten => _X.,1,Dial(PJSIP/${EXTEN}@trunk-hub)
 ; All Call
 exten => 500,1,Noop(Paging All Call)
 same => n,Playback(beep)
-same => n,SIPAddHeader(Alert-Info:intercom)
 same => n,Set(CALLERID(name)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(name)}:Intercom)})
 same => n,Set(CALLERID(num)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(num)}:Intercom)})
-same => n,Page(PJSIP/000fd3000003&PJSIP/fred&PJSIP/page-500@trunk-den,is)
+same => n,Page(PJSIP/000fd3000003&PJSIP/fred&Local/page-relay-500-den@astgen-page-relay,isb(astgen-page-alert^s^1(intercom)))
 same => n,Hangup()
+
+[astgen-page-relay]
+
+; Relay All Call to den
+exten => page-relay-500-den,1,Dial(PJSIP/page-500@trunk-den)
+
+[astgen-page-alert]
+
+; Add a paging group's Alert-Info header to a paged phone
+exten => s,1,ExecIf($["${CHANNEL(channeltype)}"="PJSIP"]?Set(PJSIP_HEADER(add,Alert-Info)=${ARG1}))
+same => n,Return()
 
 [from-trunk]
 
@@ -4113,10 +4642,9 @@ same => n,Hangup()
 ; All Call
 exten => page-500,1,Noop(Paging All Call)
 same => n,Playback(beep)
-same => n,SIPAddHeader(Alert-Info:intercom)
 same => n,Set(CALLERID(name)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(name)}:Intercom)})
 same => n,Set(CALLERID(num)=${IF($[${LEN(${CALLERID(num)})}>0]?${CALLERID(num)}:Intercom)})
-same => n,Page(PJSIP/000fd3000003&PJSIP/fred,is)
+same => n,Page(PJSIP/000fd3000003&PJSIP/fred,isb(astgen-page-alert^s^1(intercom)))
 same => n,Hangup()
 ```
 
@@ -4339,9 +4867,10 @@ func singleServerData() *astorg.DataSet {
 // TestSingleServerEquivalence renders the single-server fixture through the
 // per-server generators and checks the result against the existing
 // generators. Endpoints, aors, lines, phones and mailboxes match byte for
-// byte. Paging matches once SIP/ is renamed PJSIP/. Phone extensions keep
-// the same numbers, comments and devices, but their actions differ on
-// purpose: each device now drops out of the ring alone when it is busy.
+// byte. Paging matches once SIP/ is renamed PJSIP/ and the Alert-Info
+// header moves to the predial subroutine. Phone extensions keep the same
+// numbers, comments and devices, but their actions differ on purpose: each
+// device now drops out of the ring alone when it is busy.
 func TestSingleServerEquivalence(t *testing.T) {
 	data := singleServerData()
 	p, problems, err := astgen.Place(data)
@@ -4399,9 +4928,18 @@ func TestSingleServerEquivalence(t *testing.T) {
 		got := astgen.ServerPagingExtensions(data, p, id, "paging")
 		want := astgen.PagingGroupExtensions(data, "paging")
 		a := render(t, &got)
-		b := strings.ReplaceAll(render(t, &want), "SIP/", "PJSIP/")
+		// Apply the two deliberate changes to the old output: devices are
+		// PJSIP/, and the Alert-Info header moves from SIPAddHeader, which
+		// does nothing on PJSIP, to Page's predial subroutine.
+		b := render(t, &want)
+		b = strings.ReplaceAll(b, "SIP/", "PJSIP/")
+		b = strings.ReplaceAll(b, "same => n,SIPAddHeader(Alert-Info:intercom)\n", "")
+		b = strings.ReplaceAll(b, ",is)\n", ",isb(astgen-page-alert^s^1(intercom)))\n")
 		if a != b {
-			t.Errorf("ServerPagingExtensions() rendered:\n%s\nPagingGroupExtensions() renamed:\n%s", a, b)
+			t.Errorf("ServerPagingExtensions() rendered:\n%s\nPagingGroupExtensions() changed:\n%s", a, b)
+		}
+		if !strings.Contains(b, "Page(PJSIP/") {
+			t.Errorf("the old paging output has no Page line to compare:\n%s", b)
 		}
 	})
 
@@ -4480,8 +5018,8 @@ test(astgen): per-server output matches today's single server
 
 With one server that is also the hub, the per-server generators render
 the same endpoints, aors, lines, phones and mailboxes as the existing
-ones, the same paging apart from SIP/ becoming PJSIP/, and the same
-extensions with the same devices.
+ones, the same paging apart from SIP/ becoming PJSIP/ and Alert-Info moving
+to the predial subroutine, and the same extensions with the same devices.
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01SVDvjArCwFD9e1ndJktmVq
@@ -4530,6 +5068,9 @@ Expected: gofmt prints nothing; vet is clean; every package `ok`.
 Run: `git grep -nP '[\x{2013}\x{2014}]'`
 Expected: no output.
 
+Run: `go test ./dialplan -run Example -v`
+Expected: PASS. The dialplan package example still renders `SIP/` pages and dials unchanged after the `page.go` edit.
+
 Run: `git diff main --stat -- astgen/alert.go astgen/callerid.go astgen/dedup.go astgen/devices.go astgen/line.go astgen/mailbox.go astgen/paginggroupextension.go astgen/phone.go astgen/phoneextension.go astgen/pjsip.go astgen/ringtone.go astgen/sip.go astgen/username.go`
 Expected: no output. The old generators are untouched.
 
@@ -4550,4 +5091,4 @@ EOF
 
 - [ ] **Step 4: PR 2 boundary. Stop.**
 
-Report to the controller: the commit SHAs for Tasks 6 to 14, the output of `go test ./...`, and the two open risks under "Spec decisions" (Alert-Info on PJSIP, `Page` skipping a busy trunk). The controller opens PR 2 against `scjalliance/astconf`. Do not push.
+Report to the controller: the commit SHAs for Tasks 6 to 14 and the output of `go test ./...`. Mention that paging relies on `Page`'s `b()` option and `PJSIP_HEADER`, which should be tried once on a test server before cutover. The controller opens PR 2 against `scjalliance/astconf`. Do not push.

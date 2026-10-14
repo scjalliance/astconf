@@ -19,15 +19,15 @@ const (
 	RuleLocationNoServer   = "location-no-server"  // A desk phone at a location with no server
 	RuleServerMissing      = "server-missing"      // A location names a server that is not in the data set
 	RuleExtensionDuplicate = "extension-duplicate" // Two people or roles claim the same extension
-	RuleDeviceConflict     = "device-conflict"     // Desk phones that share a line name sit on different servers
+	RuleDeviceConflict     = "device-conflict"     // Desk phones that share a line name sit on different servers, or a softphone reuses a device name
 )
 
 // Problem describes a record that Place left out of the placement. No
 // field ever carries a secret.
 type Problem struct {
 	Rule   string // One of the Rule constants
-	Kind   string // "phone", "person" or "role"
-	ID     string // The MAC address, or the person's or role's username
+	Kind   string // "phone", "softphone", "person" or "role"
+	ID     string // The MAC address, or the softphone's, person's or role's username
 	Detail string
 }
 
@@ -154,7 +154,13 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 		if softphone.Username == "" {
 			continue
 		}
-		if _, found := p.Hosts[softphone.Username]; found {
+		if host, found := p.Hosts[softphone.Username]; found {
+			problems = append(problems, Problem{
+				Rule:   RuleDeviceConflict,
+				Kind:   "softphone",
+				ID:     softphone.Username,
+				Detail: fmt.Sprintf("device %q is already hosted on server %q", softphone.Username, host),
+			})
 			continue
 		}
 		p.Hosts[softphone.Username] = p.Hub

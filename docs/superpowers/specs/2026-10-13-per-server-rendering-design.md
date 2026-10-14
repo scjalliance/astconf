@@ -85,12 +85,14 @@ and the device or extension is left out:
 | `location-no-server` | A desk phone at an office that has no server |
 | `server-missing` | A location names a server that is not in the dataset |
 | `extension-duplicate` | Two people or roles claim the same extension |
-| `device-conflict` | Desk phones that share a line name sit on different servers |
+| `device-conflict` | Desk phones that share a line name sit on different servers, or a softphone reuses a desk line name or another softphone's username |
 
 For `extension-duplicate`, the first claimant in data set order (people, then
 roles) keeps the extension and each later one is reported. For
 `device-conflict`, such as a person with desk phones at two offices, the first
-phone in data set order decides the host and each later one is reported.
+phone in data set order decides the host and each later one is reported. A
+softphone whose username is already a desk line name or another softphone's
+is reported the same way, with kind `softphone`, and left out.
 
 `Problem` carries a rule name, the record kind and id, and a detail string,
 with no secret in any field. The consuming generator decides whether problems block a
@@ -331,3 +333,6 @@ the Asterisk source. The sections above already read this way.
     overlaid under each trunk endpoint, so trunks carry a codec list. The
     trunk's transport, context, aors, auth, outbound_auth and direct_media
     win over the base.
+15. **Softphone conflicts.** A softphone whose username is already a desk
+    line name or another softphone's is reported as `device-conflict` with
+    kind `softphone`. It was dropped with no problem before.

@@ -249,6 +249,34 @@ func TestPlaceProblems(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "softphone named like a desk phone line",
+			modify: func(data *astorg.DataSet) {
+				data.Softphones = append(data.Softphones, astorg.Softphone{Username: "fred", Location: "Remote", Secret: "fred-clash-secret"})
+			},
+			want: []astgen.Problem{
+				{Rule: astgen.RuleDeviceConflict, Kind: "softphone", ID: "fred", Detail: `device "fred" is already hosted on server "qry"`},
+			},
+			check: func(t *testing.T, p astgen.Placement) {
+				if p.Hosts["fred"] != "qry" {
+					t.Errorf("Hosts[fred] = %q, want qry", p.Hosts["fred"])
+				}
+			},
+		},
+		{
+			name: "two softphones with one username",
+			modify: func(data *astorg.DataSet) {
+				data.Softphones = append(data.Softphones, astorg.Softphone{Username: "wilma.soft", Location: "Quarry", Secret: "wilma-soft-2-secret"})
+			},
+			want: []astgen.Problem{
+				{Rule: astgen.RuleDeviceConflict, Kind: "softphone", ID: "wilma.soft", Detail: `device "wilma.soft" is already hosted on server "hub"`},
+			},
+			check: func(t *testing.T, p astgen.Placement) {
+				if p.Hosts["wilma.soft"] != "hub" {
+					t.Errorf("Hosts[wilma.soft] = %q, want hub", p.Hosts["wilma.soft"])
+				}
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

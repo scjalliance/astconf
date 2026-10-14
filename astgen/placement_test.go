@@ -170,6 +170,7 @@ func TestPlaceCredentials(t *testing.T) {
 	want := []astgen.Credential{
 		{Kind: "trunk", ID: "den~hub", Section: "auth-trunk-den"},
 		{Kind: "trunk", ID: "hub~qry", Section: "auth-trunk-qry"},
+		{Kind: "phone", ID: "000fd3000009", Section: "000fd3000009-auth"}, // The spare, on every server
 	}
 	if got := p.Credentials("hub"); !reflect.DeepEqual(got, want) {
 		t.Errorf("Credentials(hub) = %v, want %v", got, want)

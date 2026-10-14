@@ -26,22 +26,24 @@ func TestServerDeviceSections(t *testing.T) {
 	}{
 		{
 			server:    "den",
-			endpoints: []string{"lobby", "barney"},
-			aors:      []string{"lobby-aor", "barney-aor"},
-			lines:     []string{"lobby", "barney"},
-			phones:    []string{"000fd3000002", "000fd3000004"},
+			endpoints: []string{"lobby", "barney", "000fd3000009"},
+			aors:      []string{"lobby-aor", "barney-aor", "000fd3000009-aor"},
+			lines:     []string{"lobby", "barney", "000fd3000009"},
+			phones:    []string{"000fd3000002", "000fd3000004", "000fd3000009"},
 		},
 		{
 			server:    "hub",
-			endpoints: []string{"fred.soft", "wilma.soft", "yard.soft"},
-			aors:      []string{"fred.soft-aor", "wilma.soft-aor", "yard.soft-aor"},
+			endpoints: []string{"000fd3000009", "fred.soft", "wilma.soft", "yard.soft"},
+			aors:      []string{"000fd3000009-aor", "fred.soft-aor", "wilma.soft-aor", "yard.soft-aor"},
+			lines:     []string{"000fd3000009"},
+			phones:    []string{"000fd3000009"},
 		},
 		{
 			server:    "qry",
-			endpoints: []string{"fred", "000fd3000003"},
-			aors:      []string{"fred-aor", "000fd3000003-aor"},
-			lines:     []string{"fred", "000fd3000003"},
-			phones:    []string{"000fd3000001", "000fd3000003"},
+			endpoints: []string{"fred", "000fd3000003", "000fd3000009"},
+			aors:      []string{"fred-aor", "000fd3000003-aor", "000fd3000009-aor"},
+			lines:     []string{"fred", "000fd3000003", "000fd3000009"},
+			phones:    []string{"000fd3000001", "000fd3000003", "000fd3000009"},
 		},
 	}
 	for _, tt := range tests {

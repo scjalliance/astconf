@@ -19,14 +19,15 @@ func Page(recipients ...Device) PageApp {
 // https://wiki.asterisk.org/wiki/display/AST/Asterisk+16+Application_Page
 type PageApp struct {
 	Recipients       []Device
-	FullDuplex       bool   //  d: Enable two-way audio for all recipients
-	Forward          bool   // !i: Forward the page to forwarded recipients
-	Quiet            bool   //  q: Don't present a paging beep to recipients
-	Record           bool   //  r: Record the page to a file
-	InUse            bool   // !s: Include recipients with a phone state other than NOT_INUSE
-	Announcement     string //  A: Play an announcement to all recipients
-	AnnounceToCaller bool   //  x: Play an announcement to the caller as well
-	Timeout          int    // Number of seconds to attempt a call before giving up
+	FullDuplex       bool           //  d: Enable two-way audio for all recipients
+	Forward          bool           // !i: Forward the page to forwarded recipients
+	Quiet            bool           //  q: Don't present a paging beep to recipients
+	Record           bool           //  r: Record the page to a file
+	InUse            bool           // !s: Include recipients with a phone state other than NOT_INUSE
+	Announcement     string         //  A: Play an announcement to all recipients
+	AnnounceToCaller bool           //  x: Play an announcement to the caller as well
+	Timeout          int            // Number of seconds to attempt a call before giving up
+	Predial          *PredialTarget // b: Run a subroutine on each callee channel before dialing it
 }
 
 // App returns the assembled application call.
@@ -74,6 +75,9 @@ func (app PageApp) Options() string {
 			opts += "n"
 		}
 	}
+	if app.Predial != nil {
+		opts += "b(" + app.Predial.String() + ")"
+	}
 	return opts
 }
 
@@ -84,5 +88,11 @@ func (app PageApp) Validate() error {
 			return err
 		}
 	}
-	return errorIfAny("page announcement", app.Announcement, invalidArgChars)
+	if err := errorIfAny("page announcement", app.Announcement, invalidArgChars); err != nil {
+		return err
+	}
+	if app.Predial != nil {
+		return app.Predial.Validate()
+	}
+	return nil
 }

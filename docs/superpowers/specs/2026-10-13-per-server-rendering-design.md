@@ -5,7 +5,7 @@ Status: design, 2026-10-13. Not yet reviewed by the astconf maintainer.
 ## Why
 
 The phone system this serves is moving from one Asterisk server to one server per office
-plus a hub in GCP, all on one tailnet. `astorg` gained a `Server` model in PR #9
+plus a hub in the cloud, all on one tailnet. `astorg` gained a `Server` model in PR #9
 (`Server{ID, Name, Hub, Address}`, `Location.Server`, `Lookup.LocationServer`,
 `Lookup.Hub`). Nothing in `astgen` reads it yet: every generator renders the
 whole dataset as if every device were local.
@@ -59,7 +59,9 @@ Taken from the system's decision log:
 func Place(data *astorg.DataSet) (Placement, []Problem, error)
 ```
 
-`Placement` is plain data keyed by server ID, so the consuming generator can also use
+`Placement` is plain data keyed by device and extension, read through per-server
+methods (`HostedDevices`, `HomedExtensions`, `Peers`, `Credentials`), so the
+consuming generator can also use
 it to lay out each node's tree and secret manifest:
 
 - **Device host.** A desk phone is hosted by its location's server
@@ -68,8 +70,9 @@ it to lay out each node's tree and secret manifest:
   server, or on the hub when that location has no server.
 - **Remote devices.** For each extension, the devices hosted on a server other
   than its home, grouped by host.
-- **Trunk pairs.** Every unordered pair of servers. The pair id is the two
-  server IDs, sorted, joined by `~` (`den~lcy`). This is the `id` of the
+- **Trunk pairs.** Every unordered pair of servers that both have an
+  address. The pair id is the two server IDs, sorted, joined by `~`
+  (`den~lcy`). This is the `id` of the
   `trunk` credential in the secret manifest, so both ends derive the same
   secret; the sort is the normalization rule the secret-derivation contract
   requires to be fixed.
@@ -83,12 +86,24 @@ and the device or extension is left out:
 | `location-no-server` | A desk phone at an office that has no server |
 | `server-missing` | A location names a server that is not in the dataset |
 | `extension-duplicate` | Two people or roles claim the same extension |
-| `device-conflict` | Desk phones that share a line name sit on different servers |
+| `device-conflict` | Desk phones that share a line name sit on different servers, or a softphone reuses a desk line name or another softphone's username |
+| `server-no-address` | A server has an empty `Address`, so no peer can reach it |
 
 For `extension-duplicate`, the first claimant in data set order (people, then
-roles) keeps the extension and each later one is reported. For
+roles) keeps the extension and is the record the dialplan renders, and each
+later one is reported, even one with the same username. For
 `device-conflict`, such as a person with desk phones at two offices, the first
-phone in data set order decides the host and each later one is reported.
+phone in data set order decides the host and each later one is reported. A
+softphone whose username is already a desk line name or another softphone's
+is reported the same way, with kind `softphone`, and left out.
+
+A server with an empty `Address` is reported as `server-no-address` (kind
+`server`) and joins no trunk pair. It keeps its devices and extensions, so its
+own output renders, but no peer renders a trunk to it, it renders none, and
+`Credentials` names no pair with it. Calls that other servers route to it fail
+until it has an address, so the consuming generator should treat this problem
+as blocking. Leaving the server out of the placement instead would also drop
+every device and extension at its locations, and could not apply to the hub.
 
 `Problem` carries a rule name, the record kind and id, and a detail string,
 with no secret in any field. The consuming generator decides whether problems block a
@@ -103,19 +118,25 @@ For each peer, a server renders:
 
 - `endpoint` `trunk-<peer>`: `transport=transport-tcp`, `context=from-trunk`,
   `aors=trunk-<peer>`, `auth` and `outbound_auth` = `auth-trunk-<peer>`,
-  `direct_media=no`.
+  `direct_media=no`, overlaid on a base endpoint the caller passes in. The
+  base carries settings such as the codec list (`disallow`, `allow`); the
+  trunk's own settings win over it.
 - `aor` `trunk-<peer>`: `contact=sip:<peer address>:5060;transport=tcp`, where
-  the address is `Server.Address`, a tailnet hostname.
+  the address is `Server.Address`, a tailnet hostname. The host and port are
+  joined as `net.JoinHostPort` joins them, so an IPv6 literal is bracketed.
 - `identify` `trunk-<peer>`: `endpoint=trunk-<peer>`, `match=<peer address>`.
 - One shared `transport` `transport-tcp`, `protocol=tcp`, bound to an address
   the caller passes in (the server's tailnet IP, which `Server.Address` does
   not carry since it is a hostname). The address is a render input, not a
   dataset field.
 
-**Secrets.** astgen never renders a password. Each trunk endpoint names its
-auth section, and `Placement` lists the credential as `{kind: "trunk", id:
-<pair id>, section: "auth-trunk-<peer>"}`. The node agent writes that section
-into its local secrets file, as it does for phone auth (the system's contracts).
+**Secrets.** astgen never renders a secret from the data set. Each trunk
+endpoint names its auth section, and `Placement` lists the credential as
+`{kind: "trunk", id: <pair id>, section: "auth-trunk-<peer>"}`. The node agent
+writes that section into its local secrets file, as it does for phone auth
+(the system's contracts). The endpoint uses the one section as both `auth`
+and `outbound_auth`, so both ends of a pair must write the same username and
+password; the expected username is the pair id.
 
 **State publication.** For each peer:
 
@@ -183,7 +204,9 @@ role with none ends in `Congestion()`, as roles do today.
 **Routing table.** Every server renders, in the phones' context, each
 extension homed elsewhere as `Dial(PJSIP/<ext>@trunk-<home>)`: offices call
 each other directly. An office server falls through unknown extensions to the
-hub (`_X.` to `trunk-<hub>`). On the hub an unknown extension is invalid.
+hub (`_X.` to `trunk-<hub>`) from a context of its own,
+`astgen-hub-fallthrough`, which the phones' context includes last, after
+paging. On the hub an unknown extension is invalid.
 
 **Paging.** The server where a page starts pages its local members and adds
 one relay leg for each other server that hosts members. The leg is
@@ -218,8 +241,9 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error)
 // Per-server generators. Each renders only what serverID needs.
 func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pjsip.Endpoint, context string) []pjsip.Endpoint
 func ServerAORs(data *astorg.DataSet, p Placement, serverID string, base pjsip.AOR) []pjsip.AOR
-func ServerTrunks(p Placement, serverID, bindAddr string) TrunkConfig // endpoints, aors, identifies, transport, publications
+func ServerTrunks(p Placement, serverID string, base pjsip.Endpoint, bindAddr string) TrunkConfig // endpoints, aors, identifies, transport, publications
 func ServerExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section
+func ServerHubFallthrough(p Placement, serverID string) dialplan.Section // astgen-hub-fallthrough, offices only
 func ServerTrunkExtensions(data *astorg.DataSet, p Placement, serverID string, vmContext string) dialplan.Section // from-trunk
 func ServerPagingExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section
 func ServerPageRelayExtensions(data *astorg.DataSet, p Placement, serverID string) dialplan.Section // astgen-page-relay
@@ -273,9 +297,10 @@ Two pull requests to `scjalliance/astconf`, both for the maintainer's review:
 
 ## Amendments (2026-10-13)
 
-Made while writing the implementation plan
+Items 1 to 12 were made while writing the implementation plan
 (`docs/superpowers/plans/2026-10-13-per-server-rendering.md`), after checking
-the Asterisk source. The sections above already read this way.
+the Asterisk source. Items 13 to 17 came from the final review of the branch.
+The sections above already read this way.
 
 1. **State publication.** `asterisk-publication`'s `device_state_filter`
    filters incoming state, not outgoing. The own-device filter moved to the
@@ -302,3 +327,38 @@ the Asterisk source. The sections above already read this way.
    `Gosub(<name>,s,1(${EXTEN}[,<target>]))`. Each must end in `Return`. The
    existing generators keep `Macro`. The `dialplan` package gains a
    `Subroutine` application for this.
+9. **Placement keying (2026-10-13).** `Placement` is keyed by device and
+   extension and read through per-server methods, not keyed by server ID.
+10. **Mailboxes (2026-10-13).** Per-server endpoints never carry `VMCODE`.
+    Hub mailboxes carry a fixed locked sentinel password
+    (`LockedMailboxPassword`, `x`, rendered `-x`), so a mailbox whose spool
+    `secret.conf` is missing is locked rather than open. PINs are read from
+    the spool directory (`voicemail.conf` `passwordlocation=spooldir`).
+11. **Busy-lamp hints (2026-10-13).** Hints are rendered on every server for
+    every extension. `dialplan.Extension` gained a `Hint` field.
+12. **Legacy paging (2026-10-13).** The legacy paging generator now shares its
+    membership logic with the per-server code. Its output is unchanged, pinned
+    by `TestPagingGroupExtensionsLegacy`.
+13. **Hub fallthrough context.** An office's `_X.` route to the hub moved out
+    of the phones' context into `astgen-hub-fallthrough`
+    (`ServerHubFallthrough`). Asterisk matches a context's own patterns
+    before its includes, so an `_X.` there sent paging and every other
+    included extension to the hub. The phones' context includes paging and
+    other local contexts first and the fallthrough last.
+14. **Trunk base endpoint.** `ServerTrunks` takes a base `pjsip.Endpoint`,
+    overlaid under each trunk endpoint, so trunks carry a codec list. The
+    trunk's transport, context, aors, auth, outbound_auth and direct_media
+    win over the base.
+15. **Softphone conflicts.** A softphone whose username is already a desk
+    line name or another softphone's is reported as `device-conflict` with
+    kind `softphone`. It was dropped with no problem before.
+16. **Servers with no address.** Place reports `server-no-address` for a
+    server with an empty `Address` and leaves it out of every trunk pair
+    (see Placement). Trunk contacts and publish `server_uri`s join host and
+    port with `net.JoinHostPort`, so an IPv6 literal is bracketed and an
+    empty address can no longer render `sip::5060`.
+17. **Duplicate owners render once.** Two records with the same username
+    and extension both matched the placement's owner, so the extension
+    rendered twice. The dialplan generators now render only the record
+    Place chose: the first claimant whose location does not name a missing
+    server.

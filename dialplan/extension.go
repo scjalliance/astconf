@@ -10,16 +10,20 @@ import (
 type Extension struct {
 	Comment string
 	Number  string
+	Hint    Hint // Rendered before the first priority when not empty
 	Actions []Action
 }
 
 // MarshalAsterisk marshals the extension to an asterisk encoder.
 func (exten Extension) MarshalAsterisk(e *astconf.Encoder) error {
-	if len(exten.Actions) == 0 {
+	if len(exten.Actions) == 0 && len(exten.Hint) == 0 {
 		return nil
 	}
 
 	if err := errorIfAny("extension number", exten.Number, invalidExtensionChars); err != nil {
+		return err
+	}
+	if err := exten.Hint.Validate(); err != nil {
 		return err
 	}
 	for _, action := range exten.Actions {
@@ -36,6 +40,13 @@ func (exten Extension) MarshalAsterisk(e *astconf.Encoder) error {
 	// If the extension has a comment we'll print it
 	if exten.Comment != "" {
 		if err := p.Comment(exten.Comment); err != nil {
+			return err
+		}
+	}
+
+	// The hint comes first, so the next line starts priority 1 explicitly
+	if len(exten.Hint) > 0 {
+		if err := e.Printer().Object("exten", fmt.Sprintf("%s,hint,%s", exten.Number, exten.Hint.String())); err != nil {
 			return err
 		}
 	}

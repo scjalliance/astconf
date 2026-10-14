@@ -1,0 +1,291 @@
+package astgen
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/scjalliance/astconf/astorg"
+	"github.com/scjalliance/astconf/dialplan"
+)
+
+// dialVar is the channel variable that a home extension builds its dial
+// string in.
+const dialVar = dialplan.Var("ASTGEN_DIAL")
+
+// extensionOwner is a person or role that holds an extension.
+type extensionOwner struct {
+	Extension string
+	Username  string
+	Comment   string
+	Mailbox   string // Empty when the owner has no mailbox
+	Role      bool
+}
+
+// extensionOwners returns every person and then every role that holds an
+// extension in p, in data set order.
+//
+// It picks the same record Place picked for each extension: the first
+// claimant in data set order whose location does not name a missing server.
+// A later record with the same username and extension is skipped, so the
+// extension renders once.
+func extensionOwners(data *astorg.DataSet, p Placement) []extensionOwner {
+	lookup := data.Lookup()
+	seen := make(map[string]bool)
+	holds := func(username, extension, location string) bool {
+		if username == "" || extension == "" || seen[extension] || p.Owners[extension] != username {
+			return false
+		}
+		if id, _, ok := lookup.LocationServer(location); id != "" && !ok {
+			return false
+		}
+		seen[extension] = true
+		return true
+	}
+
+	var owners []extensionOwner
+	for _, person := range data.People {
+		if !holds(person.Username, person.Extension, person.Location) {
+			continue
+		}
+		owner := extensionOwner{
+			Extension: person.Extension,
+			Username:  person.Username,
+			Comment:   person.FullName,
+		}
+		if person.VoicemailCode != "" {
+			owner.Mailbox = person.Extension
+		}
+		owners = append(owners, owner)
+	}
+	for _, role := range data.PhoneRoles {
+		if !holds(role.Username, role.Extension, role.Location) {
+			continue
+		}
+		owners = append(owners, extensionOwner{
+			Extension: role.Extension,
+			Username:  role.Username,
+			Comment:   role.DisplayName,
+			Mailbox:   role.MailboxNumber,
+			Role:      true,
+		})
+	}
+	return owners
+}
+
+// remoteDevice returns the dial device that rings a device hosted on
+// another server through the trunk to that server.
+func remoteDevice(device, host string) string {
+	return "PJSIP/dev-" + device + "@" + trunkName(host)
+}
+
+// homeExtension builds the extension that rings every device of an owner
+// whose extension lives on this server.
+//
+// Each local device joins the ring only when it is idle. Each remote device
+// always joins, and its own server answers busy for it when it is in use.
+//
+// The pre-answer and no-answer subroutines are hand-written on each server
+// and called with Gosub, because Asterisk 21 removed Macro. Each reads its
+// arguments as ${ARG1} and ${ARG2} and must end in Return.
+func homeExtension(p Placement, owner extensionOwner) dialplan.Extension {
+	home := p.Homes[owner.Extension]
+
+	var remote strings.Builder
+	hosts := make([]string, 0, len(p.Remote[owner.Extension]))
+	for host := range p.Remote[owner.Extension] {
+		hosts = append(hosts, host)
+	}
+	sort.Strings(hosts)
+	for _, host := range hosts {
+		for _, device := range p.Remote[owner.Extension][host] {
+			remote.WriteString("&" + remoteDevice(device, host))
+		}
+	}
+
+	actions := []dialplan.Action{
+		dialplan.Noop(fmt.Sprintf("Call %s", owner.Username)),
+		dialplan.Subroutine("pre-answer", "s", 1, dialplan.Var("EXTEN")),
+		dialplan.Set(dialVar, dialplan.String(remote.String())),
+	}
+	for _, device := range p.Devices[owner.Extension] {
+		if p.Hosts[device] != home {
+			continue
+		}
+		local := dialplan.PJSIP(device)
+		actions = append(actions, dialplan.ExecIf(
+			dialplan.Equal(dialplan.DeviceState(local), dialplan.String("NOT_INUSE")),
+			dialplan.Set(dialVar, dialplan.Cat(dialVar, dialplan.String("&"+local.String()))),
+		))
+	}
+	actions = append(actions, dialplan.ExecIf(
+		dialplan.GreaterThan(dialplan.Len(dialVar), dialplan.Int(0)),
+		dialplan.DialExpr(dialplan.Substring(dialVar, 1), 20),
+	))
+
+	switch {
+	case owner.Mailbox != "":
+		actions = append(actions, dialplan.Subroutine("no-answer", "s", 1, dialplan.Var("EXTEN"), dialplan.String(voicemailTarget(p, home, owner.Mailbox))))
+	case owner.Role:
+		actions = append(actions, dialplan.Congestion())
+	default:
+		actions = append(actions, dialplan.Subroutine("no-answer", "s", 1, dialplan.Var("EXTEN")))
+	}
+
+	return dialplan.Extension{
+		Comment: owner.Comment,
+		Number:  owner.Extension,
+		Actions: actions,
+	}
+}
+
+// voicemailTarget returns the dial target that the no-answer subroutine on
+// home sends a caller to for mailbox. Voicemail lives on the hub, so the hub
+// reaches its own from-trunk entry through a local channel and every other
+// server reaches it over the trunk.
+func voicemailTarget(p Placement, home, mailbox string) string {
+	if home == p.Hub {
+		return "Local/vm-" + mailbox + "@" + TrunkContext
+	}
+	return "PJSIP/vm-" + mailbox + "@" + trunkName(p.Hub)
+}
+
+// extensionHint returns the hint for extension: every device it rings, on
+// any server, sorted. It is empty when the extension has no device.
+func extensionHint(p Placement, extension string) dialplan.Hint {
+	devices := append([]string(nil), p.Devices[extension]...)
+	sort.Strings(devices)
+	var hint dialplan.Hint
+	for _, device := range devices {
+		hint = append(hint, dialplan.PJSIP(device))
+	}
+	return hint
+}
+
+// ServerExtensions generates the phones' dialplan section for serverID.
+//
+// It holds a home extension for each extension that lives on serverID and
+// a route over the trunk for each extension that lives elsewhere, in data
+// set order. It holds no pattern, so nothing in it shadows the contexts
+// that the phones' context includes. ServerHubFallthrough renders an
+// office's route for unknown extensions in a context of its own.
+//
+// Every extension with a device also gets a hint, wherever it lives, so a
+// busy-lamp key lights from the state of all of its devices. A device on
+// another server reports its state through the trunk's state publication.
+func ServerExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section {
+	section := dialplan.Section{Context: context}
+
+	for _, owner := range extensionOwners(data, p) {
+		home := p.Homes[owner.Extension]
+		var exten dialplan.Extension
+		if home == serverID {
+			exten = homeExtension(p, owner)
+		} else {
+			exten = dialplan.Extension{
+				Comment: owner.Comment,
+				Number:  owner.Extension,
+				Actions: []dialplan.Action{
+					dialplan.Dial(dialplan.PJSIP(owner.Extension+"@"+trunkName(home)), 0),
+				},
+			}
+		}
+		exten.Hint = extensionHint(p, owner.Extension)
+		section.Extensions = append(section.Extensions, exten)
+	}
+
+	return section
+}
+
+// ServerHubFallthrough generates HubFallthroughContext for serverID. On an
+// office server it holds one _X. extension that sends every unknown
+// extension to the hub. On the hub it is empty, since an unknown extension
+// there is invalid.
+//
+// The phones' context must include HubFallthroughContext after every other
+// context it includes, such as paging. Asterisk tries a context's own
+// extensions first and then each include in order, so the fallthrough
+// catches only what nothing else matched.
+func ServerHubFallthrough(p Placement, serverID string) dialplan.Section {
+	section := dialplan.Section{Context: HubFallthroughContext}
+	if serverID == p.Hub {
+		return section
+	}
+	section.Extensions = append(section.Extensions, dialplan.Extension{
+		Comment: "Unknown extensions go to the hub",
+		Number:  "_X.",
+		Actions: []dialplan.Action{
+			dialplan.DialExpr(dialplan.Cat(dialplan.String("PJSIP/"), dialplan.Var("EXTEN"), dialplan.String("@"+trunkName(p.Hub))), 0),
+		},
+	})
+	return section
+}
+
+// ServerTrunkExtensions generates the from-trunk dialplan section for
+// serverID, which every call from another server enters.
+//
+// It holds the home extensions of serverID, a dev- entry for each device
+// serverID hosts, a vm- entry for each mailbox on the hub, and a page- entry
+// for each paging group with members on serverID. It never holds a route to
+// another server, so a call cannot bounce between servers.
+//
+// vmContext is the voicemail context that the hub's mailboxes live in.
+func ServerTrunkExtensions(data *astorg.DataSet, p Placement, serverID string, vmContext string) dialplan.Section {
+	section := dialplan.Section{Context: TrunkContext}
+
+	// Step 1: Home extensions
+	for _, owner := range extensionOwners(data, p) {
+		if p.Homes[owner.Extension] == serverID {
+			section.Extensions = append(section.Extensions, homeExtension(p, owner))
+		}
+	}
+
+	// Step 2: One leg of another server's ring for each hosted device
+	for _, name := range p.HostedDevices(serverID) {
+		device := dialplan.PJSIP(name)
+		section.Extensions = append(section.Extensions, dialplan.Extension{
+			Comment: fmt.Sprintf("Ring %s for another server", name),
+			Number:  "dev-" + name,
+			Actions: []dialplan.Action{
+				dialplan.ExecIf(dialplan.NotEqual(dialplan.DeviceState(device), dialplan.String("NOT_INUSE")), dialplan.Busy()),
+				dialplan.Dial(device, 0),
+				dialplan.Hangup(),
+			},
+		})
+	}
+
+	// Step 3: Voicemail, on the hub alone
+	if serverID == p.Hub {
+		seen := make(map[string]bool)
+		for _, box := range Mailboxes(data, vmContext).Mailboxes {
+			if seen[box.Extension] {
+				continue
+			}
+			seen[box.Extension] = true
+			section.Extensions = append(section.Extensions, dialplan.Extension{
+				Comment: fmt.Sprintf("Voicemail for %s", box.Name),
+				Number:  "vm-" + box.Extension,
+				Actions: []dialplan.Action{
+					dialplan.VoiceMail(box.Extension, vmContext, "u"),
+					dialplan.Hangup(),
+				},
+			})
+		}
+	}
+
+	// Step 4: Pages relayed from another server, to local members only
+	members := pagingMembers(data)
+	for _, group := range data.PagingGroups {
+		local, _ := splitMembers(p, serverID, members[group.Extension])
+		if len(local) == 0 {
+			continue
+		}
+		section.Extensions = append(section.Extensions, dialplan.Extension{
+			Comment: group.Name,
+			Number:  "page-" + group.Extension,
+			Actions: pageActions(group, local),
+		})
+	}
+
+	return section
+}

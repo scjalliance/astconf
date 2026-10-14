@@ -34,7 +34,7 @@ func renderServer(t *testing.T, data *astorg.DataSet, p astgen.Placement, server
 
 	endpoints := astgen.ServerEndpoints(data, p, serverID, pjsip.Endpoint{Context: "from-internal"}, "default")
 	aors := astgen.ServerAORs(data, p, serverID, pjsip.AOR{MaxContacts: astval.NewInt(5), RemoveExisting: astval.Yes})
-	trunks := astgen.ServerTrunks(p, serverID, bindAddrs[serverID])
+	trunks := astgen.ServerTrunks(p, serverID, pjsip.Endpoint{Disallow: []string{"all"}, Allow: []string{"ulaw", "alaw", "g722"}}, bindAddrs[serverID])
 	var pjsipValues []interface{}
 	pjsipValues = append(pjsipValues, &trunks.Transport)
 	for i := range endpoints {

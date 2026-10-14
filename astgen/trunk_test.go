@@ -5,6 +5,8 @@ import (
 
 	"github.com/scjalliance/astconf/astgen"
 	"github.com/scjalliance/astconf/astorg"
+	"github.com/scjalliance/astconf/astval"
+	"github.com/scjalliance/astconf/pjsip"
 )
 
 // renderTrunks renders every section of a trunk configuration in the order
@@ -38,7 +40,7 @@ func renderTrunks(t *testing.T, cfg astgen.TrunkConfig) string {
 // peer's devices, and it accepts mailbox state from the hub alone.
 func TestServerTrunksOffice(t *testing.T) {
 	p, _ := place(t, multiServerData())
-	got := renderTrunks(t, astgen.ServerTrunks(p, "qry", "100.64.0.3"))
+	got := renderTrunks(t, astgen.ServerTrunks(p, "qry", pjsip.Endpoint{}, "100.64.0.3"))
 	want := "[transport-tcp]\n" +
 		"type = transport\n" +
 		"protocol = tcp\n" +
@@ -126,7 +128,7 @@ func TestServerTrunksOffice(t *testing.T) {
 // state to each peer through a second outbound-publish.
 func TestServerTrunksHubPublishesMailboxes(t *testing.T) {
 	p, _ := place(t, multiServerData())
-	cfg := astgen.ServerTrunks(p, "hub", "100.64.0.1")
+	cfg := astgen.ServerTrunks(p, "hub", pjsip.Endpoint{}, "100.64.0.1")
 	var names []string
 	for _, publish := range cfg.OutboundPublishes {
 		names = append(names, publish.Name+" "+publish.Event)
@@ -163,7 +165,7 @@ func TestServerTrunksServerWithoutDevices(t *testing.T) {
 	data.Servers = append(data.Servers, astorg.Server{ID: "lcy", Name: "Lacey", Address: "lcy-phone"})
 	p, _ := place(t, data)
 
-	cfg := astgen.ServerTrunks(p, "lcy", "100.64.0.4")
+	cfg := astgen.ServerTrunks(p, "lcy", pjsip.Endpoint{}, "100.64.0.4")
 	if got := len(cfg.Endpoints); got != 3 {
 		t.Errorf("lcy has %d trunk endpoints, want 3", got)
 	}
@@ -173,7 +175,7 @@ func TestServerTrunksServerWithoutDevices(t *testing.T) {
 		}
 	}
 	found := false
-	for _, publication := range astgen.ServerTrunks(p, "qry", "100.64.0.3").AsteriskPublications {
+	for _, publication := range astgen.ServerTrunks(p, "qry", pjsip.Endpoint{}, "100.64.0.3").AsteriskPublications {
 		if publication.Name != "lcy" {
 			continue
 		}
@@ -184,5 +186,42 @@ func TestServerTrunksServerWithoutDevices(t *testing.T) {
 	}
 	if !found {
 		t.Error("qry has no asterisk-publication for lcy")
+	}
+}
+
+// TestServerTrunksBase checks that the base endpoint reaches every trunk,
+// so trunks carry a codec list, and that the trunk's own settings win over
+// any the base sets.
+func TestServerTrunksBase(t *testing.T) {
+	p, _ := place(t, multiServerData())
+	base := pjsip.Endpoint{
+		Transport:    "transport-udp",
+		Context:      "from-internal",
+		Auth:         "auth-base",
+		OutboundAuth: "auth-base",
+		AORs:         []string{"aor-base"},
+		DirectMedia:  astval.Yes,
+		Disallow:     []string{"all"},
+		Allow:        []string{"ulaw", "alaw", "g722"},
+	}
+	cfg := astgen.ServerTrunks(p, "qry", base, "100.64.0.3")
+	got := render(t, &cfg.Endpoints[0])
+	want := "[trunk-den]\n" +
+		"type = endpoint\n" +
+		"transport = transport-tcp\n" +
+		"context = from-trunk\n" +
+		"disallow = all\n" +
+		"allow = ulaw\n" +
+		"allow = alaw\n" +
+		"allow = g722\n" +
+		"auth = auth-trunk-den\n" +
+		"outbound_auth = auth-trunk-den\n" +
+		"aors = trunk-den\n" +
+		"direct_media = no\n"
+	if got != want {
+		t.Errorf("trunk endpoint rendered:\n%s\nwant:\n%s", got, want)
+	}
+	if len(base.AORs) != 1 || base.AORs[0] != "aor-base" {
+		t.Errorf("ServerTrunks changed the base aors to %v", base.AORs)
 	}
 }

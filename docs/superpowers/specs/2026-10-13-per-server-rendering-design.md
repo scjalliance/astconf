@@ -105,7 +105,9 @@ For each peer, a server renders:
 
 - `endpoint` `trunk-<peer>`: `transport=transport-tcp`, `context=from-trunk`,
   `aors=trunk-<peer>`, `auth` and `outbound_auth` = `auth-trunk-<peer>`,
-  `direct_media=no`.
+  `direct_media=no`, overlaid on a base endpoint the caller passes in. The
+  base carries settings such as the codec list (`disallow`, `allow`); the
+  trunk's own settings win over it.
 - `aor` `trunk-<peer>`: `contact=sip:<peer address>:5060;transport=tcp`, where
   the address is `Server.Address`, a tailnet hostname.
 - `identify` `trunk-<peer>`: `endpoint=trunk-<peer>`, `match=<peer address>`.
@@ -222,7 +224,7 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error)
 // Per-server generators. Each renders only what serverID needs.
 func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pjsip.Endpoint, context string) []pjsip.Endpoint
 func ServerAORs(data *astorg.DataSet, p Placement, serverID string, base pjsip.AOR) []pjsip.AOR
-func ServerTrunks(p Placement, serverID, bindAddr string) TrunkConfig // endpoints, aors, identifies, transport, publications
+func ServerTrunks(p Placement, serverID string, base pjsip.Endpoint, bindAddr string) TrunkConfig // endpoints, aors, identifies, transport, publications
 func ServerExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section
 func ServerHubFallthrough(p Placement, serverID string) dialplan.Section // astgen-hub-fallthrough, offices only
 func ServerTrunkExtensions(data *astorg.DataSet, p Placement, serverID string, vmContext string) dialplan.Section // from-trunk
@@ -325,3 +327,7 @@ the Asterisk source. The sections above already read this way.
     before its includes, so an `_X.` there sent paging and every other
     included extension to the hub. The phones' context includes paging and
     other local contexts first and the fallthrough last.
+14. **Trunk base endpoint.** `ServerTrunks` takes a base `pjsip.Endpoint`,
+    overlaid under each trunk endpoint, so trunks carry a codec list. The
+    trunk's transport, context, aors, auth, outbound_auth and direct_media
+    win over the base.

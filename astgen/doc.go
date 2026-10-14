@@ -34,7 +34,8 @@
 //     last, on offices only. Asterisk tries a context's own extensions
 //     first and then each include in order, so the fallthrough's _X.
 //     catches only what nothing else matched.
-//   - The TCP transport bind address, passed to ServerTrunks.
+//   - The TCP transport bind address and a base endpoint that carries the
+//     trunks' codec list, both passed to ServerTrunks.
 //
 // TODO: Refactor the functions in this package to avoid ingestion of whole
 // datasets. Taking a dataset as an argument hides the actual requirements

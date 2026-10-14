@@ -25,9 +25,14 @@ type TrunkConfig struct {
 // ServerTrunks generates the trunk sections for serverID, one set per peer
 // in peer ID order.
 //
+// The base endpoint is overlaid under each trunk endpoint, which is how a
+// trunk gets settings such as its codec list (allow and disallow). The
+// trunk's own transport, context, aors, auth, outbound_auth and
+// direct_media always win over the base.
+//
 // bindAddr is the address the trunk transport listens on, which is the
 // server's tailnet IP. It is a render input rather than a data set field.
-func ServerTrunks(p Placement, serverID, bindAddr string) TrunkConfig {
+func ServerTrunks(p Placement, serverID string, base pjsip.Endpoint, bindAddr string) TrunkConfig {
 	cfg := TrunkConfig{
 		Transport: pjsip.Transport{
 			Name:     TrunkTransport,
@@ -44,7 +49,9 @@ func ServerTrunks(p Placement, serverID, bindAddr string) TrunkConfig {
 		auth := trunkAuthName(peer.ID)
 		peerURI := "sip:" + peer.Address + ":" + trunkPort + ";transport=tcp"
 
-		cfg.Endpoints = append(cfg.Endpoints, pjsip.Endpoint{
+		// Overlay rather than merge, so the trunk's aors replace any in the
+		// base instead of joining them.
+		cfg.Endpoints = append(cfg.Endpoints, pjsip.OverlayEndpoints(base, pjsip.Endpoint{
 			Name:         name,
 			Transport:    TrunkTransport,
 			Context:      TrunkContext,
@@ -52,7 +59,7 @@ func ServerTrunks(p Placement, serverID, bindAddr string) TrunkConfig {
 			OutboundAuth: auth,
 			AORs:         []string{name},
 			DirectMedia:  astval.No,
-		})
+		}))
 		cfg.AORs = append(cfg.AORs, pjsip.AOR{
 			Name:     name,
 			Contacts: []string{peerURI},

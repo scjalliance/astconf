@@ -59,7 +59,9 @@ Taken from the system's decision log:
 func Place(data *astorg.DataSet) (Placement, []Problem, error)
 ```
 
-`Placement` is plain data keyed by server ID, so the consuming generator can also use
+`Placement` is plain data keyed by device and extension, read through per-server
+methods (`HostedDevices`, `HomedExtensions`, `Peers`, `Credentials`), so the
+consuming generator can also use
 it to lay out each node's tree and secret manifest:
 
 - **Device host.** A desk phone is hosted by its location's server
@@ -271,7 +273,7 @@ Two pull requests to `scjalliance/astconf`, both for the maintainer's review:
    `Substring`, `DialExpr`, and a predial target on `Page` (its `b()`
    option). A `Page` without one renders as before.
 
-## Amendments (2026-10-13)
+## Amendments (2026-10-13 and 2026-10-14)
 
 Made while writing the implementation plan
 (`docs/superpowers/plans/2026-10-13-per-server-rendering.md`), after checking
@@ -302,3 +304,15 @@ the Asterisk source. The sections above already read this way.
    `Gosub(<name>,s,1(${EXTEN}[,<target>]))`. Each must end in `Return`. The
    existing generators keep `Macro`. The `dialplan` package gains a
    `Subroutine` application for this.
+9. **Placement keying (2026-10-14).** `Placement` is keyed by device and
+   extension and read through per-server methods, not keyed by server ID.
+10. **Mailboxes (2026-10-14).** Per-server endpoints never carry `VMCODE`.
+    Hub mailboxes carry a fixed locked sentinel password
+    (`LockedMailboxPassword`, `x`, rendered `-x`), so a mailbox whose spool
+    `secret.conf` is missing is locked rather than open. PINs are read from
+    the spool directory (`voicemail.conf` `passwordlocation=spooldir`).
+11. **Busy-lamp hints (2026-10-14).** Hints are rendered on every server for
+    every extension. `dialplan.Extension` gained a `Hint` field.
+12. **Legacy paging (2026-10-14).** The legacy paging generator now shares its
+    membership logic with the per-server code. Its output is unchanged, pinned
+    by `TestPagingGroupExtensionsLegacy`.

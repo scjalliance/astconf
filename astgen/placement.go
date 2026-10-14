@@ -21,6 +21,7 @@ const (
 	RuleExtensionDuplicate = "extension-duplicate" // Two people or roles claim the same extension
 	RuleDeviceConflict     = "device-conflict"     // Desk phones that share a line name sit on different servers, or a softphone reuses a device name
 	RuleServerNoAddress    = "server-no-address"   // A server has an empty Address, so no peer can reach it
+	RuleOwnedNoLocation    = "owned-no-location"   // A desk phone with no location that a person or role owns
 )
 
 // Problem describes a record that Place left out of the placement, or a
@@ -56,9 +57,19 @@ type TrunkPair struct {
 // username and password as the section on the other end, or calls fail
 // in both directions. The expected username is the pair ID, which both
 // ends already share.
+//
+// For a desk phone, the node agent writes the auth section of the phone's
+// line, with the secret derived from ID, the MAC address. The section is
+// the one the line's pjsip endpoint names: "<line>-auth", which for an
+// unassigned phone or a spare is "<MAC>-auth". When several phones share
+// a line, one credential covers the line, derived from the MAC address of
+// the first of them in data set order that Place hosts or keeps as a
+// spare. A phone that Place reports as a problem, such as a
+// device-conflict, is skipped. A consumer must write the section that
+// Section names and never build the name itself.
 type Credential struct {
-	Kind    string // "trunk"
-	ID      string // The trunk pair ID, from which both ends derive the same secret
+	Kind    string // "trunk" or "phone"
+	ID      string // The trunk pair ID, from which both ends derive the same secret, or a desk phone's MAC address
 	Section string // The pjsip auth section the secret is written to
 }
 
@@ -78,6 +89,8 @@ type Placement struct {
 	Devices    map[string][]string            // Extension to the names of the devices it rings, sorted
 	Remote     map[string]map[string][]string // Extension to host server ID to the devices it rings there, sorted, for every host other than its home
 	TrunkPairs []TrunkPair                    // Every unordered pair of servers that both have an address, sorted by ID
+	Spares     []string                       // MAC addresses of the spare desk phones, sorted; every server renders each one
+	LineMACs   map[string]string              // Line name of each hosted desk phone and spare to the MAC address its credential derives from: the first phone on the line, in data set order, that Place hosts or keeps as a spare
 }
 
 // Place decides which server hosts each device and which server owns each
@@ -86,6 +99,18 @@ type Placement struct {
 // A desk phone is hosted by its location's server. Every softphone is
 // hosted by the hub. A person's or role's extension lives on its location's
 // server, or on the hub when that location has no server.
+//
+// A spare is a desk phone with an empty Location that no person or role
+// owns. It may be plugged in at any office, so it is hosted by no server
+// and every server renders it, as the whole-dataset generators render an
+// unassigned phone: a DPMA phone with no extension and no user whose line,
+// pjsip endpoint and aor are named by its MAC address. A spare rings for
+// no extension, has no hint and no route, joins no paging group, and is
+// left out of every device state filter, so no server publishes state for
+// a device that may register to any of them. A desk phone with an empty
+// Location that a person or role owns is not a spare: it is reported as
+// RuleOwnedNoLocation and left out, since its extension's home cannot
+// tell which server should ring it.
 //
 // Place returns an error only when the data set does not have exactly one
 // hub. Any other record that cannot be placed is reported as a Problem and
@@ -122,6 +147,8 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 		Owners:  make(map[string]string),
 		Devices: make(map[string][]string),
 		Remote:  make(map[string]map[string][]string),
+
+		LineMACs: make(map[string]string),
 	}
 	for id, server := range lookup.ServerByID {
 		p.Servers[id] = server
@@ -129,10 +156,39 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 
 	var problems []Problem
 
-	// Step 1: Host each desk phone on its location's server
+	// Step 1: Host each desk phone on its location's server, and set aside
+	// each spare
+	spares := make(map[string]bool)
 	for _, phone := range data.Phones {
 		name := lineUsername(phone.MAC, lookup)
 		if name == "" {
+			continue
+		}
+		if phone.Location == "" {
+			if phoneOwned(phone.MAC, lookup) {
+				problems = append(problems, Problem{
+					Rule:   RuleOwnedNoLocation,
+					Kind:   "phone",
+					ID:     phone.MAC,
+					Detail: fmt.Sprintf("the phone has no location but is assigned to %q", name),
+				})
+				continue
+			}
+			if host, found := p.Hosts[name]; found {
+				problems = append(problems, Problem{
+					Rule:   RuleDeviceConflict,
+					Kind:   "phone",
+					ID:     phone.MAC,
+					Detail: fmt.Sprintf("line %q is already hosted on server %q, so it cannot be a spare", name, host),
+				})
+				continue
+			}
+			// An unassigned phone's line is named by its MAC address.
+			if !spares[name] {
+				spares[name] = true
+				p.Spares = append(p.Spares, phone.MAC)
+				p.LineMACs[name] = phone.MAC
+			}
 			continue
 		}
 		id, _, ok := lookup.LocationServer(phone.Location)
@@ -163,9 +219,22 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 			})
 			continue
 		}
+		if spares[name] {
+			problems = append(problems, Problem{
+				Rule:   RuleDeviceConflict,
+				Kind:   "phone",
+				ID:     phone.MAC,
+				Detail: fmt.Sprintf("line %q is already the line of a spare desk phone on every server", name),
+			})
+			continue
+		}
 		p.Phones[phone.MAC] = id
 		p.Hosts[name] = id
+		if _, found := p.LineMACs[name]; !found {
+			p.LineMACs[name] = phone.MAC
+		}
 	}
+	sort.Strings(p.Spares)
 
 	// Step 2: Host every softphone on the hub
 	for _, softphone := range data.Softphones {
@@ -178,6 +247,15 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 				Kind:   "softphone",
 				ID:     softphone.Username,
 				Detail: fmt.Sprintf("device %q is already hosted on server %q", softphone.Username, host),
+			})
+			continue
+		}
+		if spares[softphone.Username] {
+			problems = append(problems, Problem{
+				Rule:   RuleDeviceConflict,
+				Kind:   "softphone",
+				ID:     softphone.Username,
+				Detail: fmt.Sprintf("device %q is already the line of a spare desk phone on every server", softphone.Username),
 			})
 			continue
 		}
@@ -332,8 +410,14 @@ func (p Placement) HomedExtensions(serverID string) []string {
 	return extensions
 }
 
-// Credentials returns the trunk credentials that serverID's node agent
-// writes, one per peer, sorted by pair ID.
+// Credentials returns the credentials that serverID's node agent writes:
+// one trunk credential per peer, sorted by pair ID, and then one phone
+// credential for each desk phone line serverID hosts and each spare,
+// sorted by MAC address. Every server lists every spare, whether or not
+// it has an address. This is the one list of derived secrets the node
+// agent needs: it holds every auth section that serverID's rendered
+// endpoints and trunks name, apart from softphones, whose secrets are not
+// derived.
 func (p Placement) Credentials(serverID string) []Credential {
 	var creds []Credential
 	for _, pair := range p.TrunkPairs {
@@ -352,7 +436,40 @@ func (p Placement) Credentials(serverID string) []Credential {
 			Section: trunkAuthName(peer),
 		})
 	}
-	return creds
+	if _, ok := p.Servers[serverID]; !ok {
+		return creds
+	}
+	spares := p.spareSet()
+	var phones []Credential
+	for line, mac := range p.LineMACs {
+		if p.Hosts[line] != serverID && !spares[line] {
+			continue
+		}
+		phones = append(phones, Credential{
+			Kind:    "phone",
+			ID:      mac,
+			Section: authName(line),
+		})
+	}
+	sort.Slice(phones, func(i, j int) bool { return phones[i].ID < phones[j].ID })
+	return append(creds, phones...)
+}
+
+// spareSet returns the set of device names of the spare desk phones. An
+// unassigned phone's line is named by its MAC address.
+func (p Placement) spareSet() map[string]bool {
+	set := make(map[string]bool, len(p.Spares))
+	for _, mac := range p.Spares {
+		set[mac] = true
+	}
+	return set
+}
+
+// phoneOwned reports whether a person or role owns the phone with the given
+// MAC address, by the data set's phone assignments.
+func phoneOwned(mac string, lookup astorg.Lookup) bool {
+	assignment, ok := lookup.PhoneAssignments[mac]
+	return ok && assignment.Type != astorg.Unassigned
 }
 
 // PairID returns the trunk pair ID for two servers: their IDs, sorted,

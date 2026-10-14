@@ -65,7 +65,9 @@ consuming generator can also use
 it to lay out each node's tree and secret manifest:
 
 - **Device host.** A desk phone is hosted by its location's server
-  (`Lookup.LocationServer`). Every softphone is hosted by the hub.
+  (`Lookup.LocationServer`). Every softphone is hosted by the hub. A
+  spare, a desk phone with no location and no owner, is hosted by no
+  server and rendered on every server (Amendment 18).
 - **Extension home.** A person's or role's extension lives on its location's
   server, or on the hub when that location has no server.
 - **Remote devices.** For each extension, the devices hosted on a server other
@@ -76,6 +78,12 @@ it to lay out each node's tree and secret manifest:
   `trunk` credential in the secret manifest, so both ends derive the same
   secret; the sort is the normalization rule the secret-derivation contract
   requires to be fixed.
+- **Spares.** `Spares` holds the MAC address of each spare desk phone,
+  sorted (Amendment 18).
+- **Line credentials.** `LineMACs` maps the line name of each hosted desk
+  phone and each spare to the MAC address its phone credential derives
+  from: the first phone on the line, in data set order, that `Place`
+  hosts or keeps as a spare (Amendment 19).
 
 `Place` returns an error only when the dataset has no hub or more than one,
 since nothing can route without exactly one. Everything else is a `Problem`
@@ -86,8 +94,9 @@ and the device or extension is left out:
 | `location-no-server` | A desk phone at an office that has no server |
 | `server-missing` | A location names a server that is not in the dataset |
 | `extension-duplicate` | Two people or roles claim the same extension |
-| `device-conflict` | Desk phones that share a line name sit on different servers, or a softphone reuses a desk line name or another softphone's username |
+| `device-conflict` | Desk phones that share a line name sit on different servers, a softphone reuses a desk line name or another softphone's username, or a spare's line (its MAC address) collides with a hosted desk phone's line or a softphone |
 | `server-no-address` | A server has an empty `Address`, so no peer can reach it |
+| `owned-no-location` | A desk phone with no location that a person or role owns |
 
 For `extension-duplicate`, the first claimant in data set order (people, then
 roles) keeps the extension and is the record the dialplan renders, and each
@@ -134,9 +143,9 @@ For each peer, a server renders:
 endpoint names its auth section, and `Placement` lists the credential as
 `{kind: "trunk", id: <pair id>, section: "auth-trunk-<peer>"}`. The node agent
 writes that section into its local secrets file, as it does for phone auth
-(the system's contracts). The endpoint uses the one section as both `auth`
-and `outbound_auth`, so both ends of a pair must write the same username and
-password; the expected username is the pair id.
+(the system's contracts, and Amendment 19). The endpoint uses the one
+section as both `auth` and `outbound_auth`, so both ends of a pair must
+write the same username and password; the expected username is the pair id.
 
 **State publication.** For each peer:
 
@@ -229,7 +238,8 @@ the fallthrough, so a call cannot bounce between servers.
 
 ## DPMA
 
-Phone, line and busy-lamp sections render only on the phone's host server. A
+Phone, line and busy-lamp sections render only on the phone's host server,
+except that a spare's phone and line render on every server. A
 busy-lamp key for someone on another server names the same `PJSIP/<device>`
 hint as a local one and lights from the published state.
 
@@ -362,3 +372,41 @@ The sections above already read this way.
     rendered twice. The dialplan generators now render only the record
     Place chose: the first claimant whose location does not name a missing
     server.
+
+## Amendments (2026-10-14)
+
+18. **Spare desk phones** (project owner, 2026-10-14). A desk phone with
+    an empty `Location` and no owner (no person or role assignment in
+    `Lookup.PhoneAssignments`) is a spare. It may be plugged in at any
+    office, so `Place` lists its MAC address in `Placement.Spares`
+    (sorted) instead of reporting `location-no-server`, and no server
+    hosts it. Every server renders its DPMA phone and line and its pjsip
+    endpoint and aor exactly as the whole-dataset generators render an
+    unassigned phone: each is named by its MAC address, with no extension
+    and no user, so DPMA can provision it anywhere. `Credentials` lists
+    `{kind: "phone", id: <MAC>, section: "<MAC>-auth"}` for every spare on
+    every server, so each node agent writes its auth section (see
+    Amendment 19). A spare gets no extension, hint, route, `dev-`
+    entry or paging membership, and is left out of every device state
+    filter, both the outbound-publish `@device_state_filter` and the
+    `asterisk-publication` `device_state_filter`, so no two servers
+    publish conflicting state for a device that may register to either.
+    A phone whose `Location` is set but has no server keeps
+    `location-no-server`. A phone with no location that a person or role
+    owns is reported as `owned-no-location` and left out, since nothing
+    says which server should ring it for its owner's extension. A
+    softphone or located desk phone whose device name is a spare's line
+    is reported as `device-conflict`.
+19. **Phone credentials** (2026-10-14). `Credentials` is
+    the one list of derived secrets a node agent needs. For a server it
+    lists the trunk credentials, sorted by pair id, and then a phone
+    credential for each desk phone line the server hosts and each spare,
+    sorted by MAC address: `{kind: "phone", id: <MAC>, section: "<line>-auth"}`.
+    The section is the auth section the line's endpoint names, which is
+    `<MAC>-auth` for a spare or another unassigned phone. Phones that share
+    a line share one section, so they get one credential, derived from
+    the MAC address of the first of them, in data set order, that `Place`
+    hosts or keeps as a spare; a phone reported as a problem, such as a
+    `device-conflict`, is skipped. A consumer
+    must write the section that `Credential.Section` names and never build
+    the name itself. Softphone secrets are not derived and are not listed.

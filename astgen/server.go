@@ -8,7 +8,8 @@ import (
 	"github.com/scjalliance/astconf/voicemail"
 )
 
-// hostedSet returns the set of device names that serverID hosts.
+// hostedSet returns the set of device names that serverID renders: the
+// devices it hosts and, on every server in the placement, every spare.
 func hostedSet(p Placement, serverID string) map[string]bool {
 	set := make(map[string]bool)
 	for name, host := range p.Hosts {
@@ -16,18 +17,101 @@ func hostedSet(p Placement, serverID string) map[string]bool {
 			set[name] = true
 		}
 	}
+	if _, ok := p.Servers[serverID]; ok {
+		for name := range p.spareSet() {
+			set[name] = true
+		}
+	}
 	return set
 }
 
+// placedData returns a shallow copy of data that holds only the devices
+// Place accepted, for the device generators to render from. Each desk
+// phone is kept only for the first record of its MAC address that Place
+// hosted or kept as a spare, and each softphone only for the first record
+// of its username that Place hosted on the hub. Each person's and role's
+// softphone list is filtered the same way, so the owner of a rejected
+// softphone never merges its caller ID or variables into another device
+// of the same name, such as a spare. data itself is never changed.
+func placedData(data *astorg.DataSet, p Placement) *astorg.DataSet {
+	lookup := data.Lookup()
+	spares := make(map[string]bool, len(p.Spares))
+	for _, mac := range p.Spares {
+		spares[mac] = true
+	}
+
+	out := *data
+
+	out.Phones = nil
+	keptPhone := make(map[string]bool)
+	for _, phone := range data.Phones {
+		if keptPhone[phone.MAC] {
+			continue
+		}
+		var accepted bool
+		if phone.Location == "" {
+			accepted = spares[phone.MAC]
+		} else if host, ok := p.Phones[phone.MAC]; ok {
+			id, _, _ := lookup.LocationServer(phone.Location)
+			accepted = id == host
+		}
+		if accepted {
+			keptPhone[phone.MAC] = true
+			out.Phones = append(out.Phones, phone)
+		}
+	}
+
+	// A softphone is accepted when it is hosted on the hub and its username
+	// is not a desk phone line or a spare's line.
+	acceptedSoftphone := func(username string) bool {
+		if _, line := p.LineMACs[username]; line {
+			return false
+		}
+		host, ok := p.Hosts[username]
+		return ok && host == p.Hub
+	}
+	out.Softphones = nil
+	keptSoftphone := make(map[string]bool)
+	for _, softphone := range data.Softphones {
+		if keptSoftphone[softphone.Username] || !acceptedSoftphone(softphone.Username) {
+			continue
+		}
+		keptSoftphone[softphone.Username] = true
+		out.Softphones = append(out.Softphones, softphone)
+	}
+
+	filter := func(names []string) []string {
+		var kept []string
+		for _, name := range names {
+			if keptSoftphone[name] {
+				kept = append(kept, name)
+			}
+		}
+		return kept
+	}
+	out.People = make(astorg.PersonList, len(data.People))
+	for i, person := range data.People {
+		person.Softphones = filter(person.Softphones)
+		out.People[i] = person
+	}
+	out.PhoneRoles = make(astorg.PhoneRoleList, len(data.PhoneRoles))
+	for i, role := range data.PhoneRoles {
+		role.Softphones = filter(role.Softphones)
+		out.PhoneRoles[i] = role
+	}
+	return &out
+}
+
 // ServerEndpoints generates PJSIP endpoint entries for the devices that
-// serverID hosts. Each entry is the one Endpoints generates for the same
-// device, in the same order, except that the VMCODE variable is removed.
+// serverID hosts and for every spare. Each entry is the one Endpoints
+// generates for the same device, in the same order, except that the VMCODE
+// variable is removed.
 // Per-server output is committed to a config repo that every server pulls,
 // so it never holds a voicemail PIN.
 func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pjsip.Endpoint, context string) []pjsip.Endpoint {
 	hosted := hostedSet(p, serverID)
 	var out []pjsip.Endpoint
-	for _, endpoint := range Endpoints(data, base, context) {
+	for _, endpoint := range Endpoints(placedData(data, p), base, context) {
 		if !hosted[endpoint.Name] {
 			continue
 		}
@@ -44,15 +128,15 @@ func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pj
 }
 
 // ServerAORs generates PJSIP aor entries for the devices that serverID
-// hosts. Each entry is the one AORs generates for the same device, in the
-// same order.
+// hosts and for every spare. Each entry is the one AORs generates for the
+// same device, in the same order.
 func ServerAORs(data *astorg.DataSet, p Placement, serverID string, base pjsip.AOR) []pjsip.AOR {
 	hosted := make(map[string]bool)
 	for name := range hostedSet(p, serverID) {
 		hosted[aorName(name)] = true
 	}
 	var out []pjsip.AOR
-	for _, aor := range AORs(data, base) {
+	for _, aor := range AORs(placedData(data, p), base) {
 		if hosted[aor.Name] {
 			out = append(out, aor)
 		}
@@ -61,12 +145,12 @@ func ServerAORs(data *astorg.DataSet, p Placement, serverID string, base pjsip.A
 }
 
 // ServerLines generates DPMA line entries for the desk phones that serverID
-// hosts. Each entry is the one Lines generates for the same line, in the
-// same order.
+// hosts and for every spare. Each entry is the one Lines generates for the
+// same line, in the same order.
 func ServerLines(data *astorg.DataSet, p Placement, serverID string) []dpma.Line {
 	hosted := hostedSet(p, serverID)
 	var out []dpma.Line
-	for _, line := range Lines(data) {
+	for _, line := range Lines(placedData(data, p)) {
 		if hosted[line.Name] {
 			out = append(out, line)
 		}
@@ -75,12 +159,16 @@ func ServerLines(data *astorg.DataSet, p Placement, serverID string) []dpma.Line
 }
 
 // ServerPhones generates DPMA phone entries for the desk phones that
-// serverID hosts. Each entry is the one Phones generates for the same
-// phone, in the same order.
+// serverID hosts and for every spare. Each entry is the one Phones
+// generates for the same phone, in the same order.
 func ServerPhones(data *astorg.DataSet, p Placement, serverID string, base dpma.Phone, contactsURL string) []dpma.Phone {
+	var spares map[string]bool
+	if _, ok := p.Servers[serverID]; ok {
+		spares = p.spareSet()
+	}
 	var out []dpma.Phone
-	for _, phone := range Phones(data, base, contactsURL) {
-		if host, ok := p.Phones[phone.MAC]; ok && host == serverID {
+	for _, phone := range Phones(placedData(data, p), base, contactsURL) {
+		if host, ok := p.Phones[phone.MAC]; (ok && host == serverID) || spares[phone.MAC] {
 			out = append(out, phone)
 		}
 	}

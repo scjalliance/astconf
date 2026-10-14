@@ -18,7 +18,9 @@ import (
 //     extension and her one device both live on the hub.
 //   - The lobby role (200) has a desk phone at Den and a mailbox.
 //   - The yard role (201) is at Remote with only a softphone.
-//   - A spare phone at Quarry is assigned to nobody.
+//   - A phone at Quarry is assigned to nobody, so qry hosts it.
+//   - A spare phone has no location and is assigned to nobody, so every
+//     server renders it.
 //   - The All Call paging group (500) covers Quarry and Den, so none of its
 //     members are on the hub.
 func multiServerData() *astorg.DataSet {
@@ -83,6 +85,7 @@ func multiServerData() *astorg.DataSet {
 			{MAC: "000fd3000002", Location: "Den", Secret: "lobby-secret"},
 			{MAC: "000fd3000003", Location: "Quarry", Secret: "spare-secret"},
 			{MAC: "000fd3000004", Location: "Den", Secret: "barney-secret"},
+			{MAC: "000fd3000009", Secret: "roaming-spare-secret"},
 		},
 		Softphones: astorg.SoftphoneList{
 			{Username: "fred.soft", Location: "Quarry", Secret: "fred-soft-secret"},

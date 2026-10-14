@@ -36,14 +36,16 @@ import (
 //     are ignored when comparing.
 
 // singleServerData returns testData with one server, qry, that is also the
-// hub, and a paging group at Quarry. This is the current deployment: every
-// device and extension is local.
+// hub, a paging group at Quarry, and a spare phone with no location and no
+// owner. This is the current deployment: every device and extension is
+// local, and the spare renders as the legacy unassigned phone does.
 func singleServerData() *astorg.DataSet {
 	data := testData()
 	data.Servers = astorg.ServerList{{ID: "qry", Name: "Quarry", Hub: true, Address: "qry-phone"}}
 	data.Locations[0].Server = "qry"
 	data.Locations[0].PagingGroups = []string{"500"}
 	data.PagingGroups = astorg.PagingGroupList{{Name: "All Call", Extension: "500", Alert: "intercom"}}
+	data.Phones = append(data.Phones, astorg.Phone{MAC: "000fd3000009", Secret: "roaming-spare-secret", Templates: []string{"desk"}})
 	return data
 }
 

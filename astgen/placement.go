@@ -47,6 +47,15 @@ type TrunkPair struct {
 
 // Credential names a secret that the node agent writes into a server's
 // local secrets file. astgen never renders the secret itself.
+//
+// For a trunk, the node agent writes the whole auth section: type=auth,
+// auth_type=userpass, a username and the password derived from ID. The
+// trunk endpoint uses that one section both as its auth, to check the
+// peer's requests, and as its outbound_auth, to answer the peer's
+// challenges. So the section on one end of a pair must hold the same
+// username and password as the section on the other end, or calls fail
+// in both directions. The expected username is the pair ID, which both
+// ends already share.
 type Credential struct {
 	Kind    string // "trunk"
 	ID      string // The trunk pair ID, from which both ends derive the same secret

@@ -5,7 +5,7 @@ Status: design, 2026-10-13. Not yet reviewed by the astconf maintainer.
 ## Why
 
 The phone system this serves is moving from one Asterisk server to one server per office
-plus a hub in GCP, all on one tailnet. `astorg` gained a `Server` model in PR #9
+plus a hub in the cloud, all on one tailnet. `astorg` gained a `Server` model in PR #9
 (`Server{ID, Name, Hub, Address}`, `Location.Server`, `Lookup.LocationServer`,
 `Lookup.Hub`). Nothing in `astgen` reads it yet: every generator renders the
 whole dataset as if every device were local.
@@ -130,10 +130,13 @@ For each peer, a server renders:
   not carry since it is a hostname). The address is a render input, not a
   dataset field.
 
-**Secrets.** astgen never renders a password. Each trunk endpoint names its
-auth section, and `Placement` lists the credential as `{kind: "trunk", id:
-<pair id>, section: "auth-trunk-<peer>"}`. The node agent writes that section
-into its local secrets file, as it does for phone auth (the system's contracts).
+**Secrets.** astgen never renders a secret from the data set. Each trunk
+endpoint names its auth section, and `Placement` lists the credential as
+`{kind: "trunk", id: <pair id>, section: "auth-trunk-<peer>"}`. The node agent
+writes that section into its local secrets file, as it does for phone auth
+(the system's contracts). The endpoint uses the one section as both `auth`
+and `outbound_auth`, so both ends of a pair must write the same username and
+password; the expected username is the pair id.
 
 **State publication.** For each peer:
 
@@ -292,11 +295,12 @@ Two pull requests to `scjalliance/astconf`, both for the maintainer's review:
    `Substring`, `DialExpr`, and a predial target on `Page` (its `b()`
    option). A `Page` without one renders as before.
 
-## Amendments (2026-10-13 and 2026-10-14)
+## Amendments (2026-10-13)
 
-Made while writing the implementation plan
+Items 1 to 12 were made while writing the implementation plan
 (`docs/superpowers/plans/2026-10-13-per-server-rendering.md`), after checking
-the Asterisk source. The sections above already read this way.
+the Asterisk source. Items 13 to 17 came from the final review of the branch.
+The sections above already read this way.
 
 1. **State publication.** `asterisk-publication`'s `device_state_filter`
    filters incoming state, not outgoing. The own-device filter moved to the
@@ -323,16 +327,16 @@ the Asterisk source. The sections above already read this way.
    `Gosub(<name>,s,1(${EXTEN}[,<target>]))`. Each must end in `Return`. The
    existing generators keep `Macro`. The `dialplan` package gains a
    `Subroutine` application for this.
-9. **Placement keying (2026-10-14).** `Placement` is keyed by device and
+9. **Placement keying (2026-10-13).** `Placement` is keyed by device and
    extension and read through per-server methods, not keyed by server ID.
-10. **Mailboxes (2026-10-14).** Per-server endpoints never carry `VMCODE`.
+10. **Mailboxes (2026-10-13).** Per-server endpoints never carry `VMCODE`.
     Hub mailboxes carry a fixed locked sentinel password
     (`LockedMailboxPassword`, `x`, rendered `-x`), so a mailbox whose spool
     `secret.conf` is missing is locked rather than open. PINs are read from
     the spool directory (`voicemail.conf` `passwordlocation=spooldir`).
-11. **Busy-lamp hints (2026-10-14).** Hints are rendered on every server for
+11. **Busy-lamp hints (2026-10-13).** Hints are rendered on every server for
     every extension. `dialplan.Extension` gained a `Hint` field.
-12. **Legacy paging (2026-10-14).** The legacy paging generator now shares its
+12. **Legacy paging (2026-10-13).** The legacy paging generator now shares its
     membership logic with the per-server code. Its output is unchanged, pinned
     by `TestPagingGroupExtensionsLegacy`.
 13. **Hub fallthrough context.** An office's `_X.` route to the hub moved out

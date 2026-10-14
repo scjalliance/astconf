@@ -11,7 +11,15 @@
 // ServerExtensions, render one server's share of a deployment with office
 // servers and a hub. Place decides once where each device and extension
 // lives, and each Server generator renders only what one server needs,
-// naming devices PJSIP/. These generators never render a password.
+// naming devices PJSIP/. They only read the data set and the placement, so
+// several servers may render at once from one of each.
+//
+// These generators never render a secret from the data set: no phone or
+// softphone secret, voicemail code or mailbox access code, and no trunk
+// password, which the node agent writes from the credentials Placement
+// lists. Each hub mailbox carries the fixed sentinel LockedMailboxPassword
+// instead of its PIN. A value in a base the caller passes in, such as a PIN
+// in the dpma.Phone base given to ServerPhones, passes through as given.
 //
 // # What the consumer must provide
 //

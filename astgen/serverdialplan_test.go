@@ -9,8 +9,7 @@ import (
 
 // TestServerExtensionsOffice renders the phones' context of an office. Its
 // own extension rings its local desk phone when idle and the owner's
-// softphone on the hub, every other extension routes to its home, and
-// unknown extensions go to the hub.
+// softphone on the hub, and every other extension routes to its home.
 func TestServerExtensionsOffice(t *testing.T) {
 	data := multiServerData()
 	p, _ := place(t, data)
@@ -41,10 +40,7 @@ func TestServerExtensionsOffice(t *testing.T) {
 		"\n" +
 		"; Yard\n" +
 		"exten => 201,hint,PJSIP/yard.soft\n" +
-		"exten => 201,1,Dial(PJSIP/201@trunk-hub)\n" +
-		"\n" +
-		"; Unknown extensions go to the hub\n" +
-		"exten => _X.,1,Dial(PJSIP/${EXTEN}@trunk-hub)\n"
+		"exten => 201,1,Dial(PJSIP/201@trunk-hub)\n"
 	if got != want {
 		t.Errorf("ServerExtensions(qry) rendered:\n%s\nwant:\n%s", got, want)
 	}
@@ -222,5 +218,38 @@ func TestServerTrunkExtensionsNoPageWithoutMembers(t *testing.T) {
 	section := astgen.ServerTrunkExtensions(data, p, "hub", "default")
 	if text := render(t, &section); strings.Contains(text, "page-500,") {
 		t.Errorf("hub from-trunk has a page- entry with no local members:\n%s", text)
+	}
+}
+
+// TestServerHubFallthrough checks that an office's phones' context holds no
+// _X. pattern, which would shadow paging and every other included context,
+// and that the fallthrough context holds it instead. The hub's fallthrough
+// context is empty.
+func TestServerHubFallthrough(t *testing.T) {
+	data := multiServerData()
+	p, _ := place(t, data)
+
+	for _, serverID := range p.ServerIDs() {
+		section := astgen.ServerExtensions(data, p, serverID, "from-internal")
+		for _, ext := range section.Extensions {
+			if strings.HasPrefix(ext.Number, "_") {
+				t.Errorf("%s phones' context holds the pattern %s", serverID, ext.Number)
+			}
+		}
+	}
+
+	office := astgen.ServerHubFallthrough(p, "qry")
+	got := render(t, &office)
+	want := "[astgen-hub-fallthrough]\n" +
+		"\n" +
+		"; Unknown extensions go to the hub\n" +
+		"exten => _X.,1,Dial(PJSIP/${EXTEN}@trunk-hub)\n"
+	if got != want {
+		t.Errorf("ServerHubFallthrough(qry) rendered:\n%s\nwant:\n%s", got, want)
+	}
+
+	hub := astgen.ServerHubFallthrough(p, "hub")
+	if hub.Context != astgen.HubFallthroughContext || len(hub.Extensions) != 0 {
+		t.Errorf("ServerHubFallthrough(hub) = %+v, want an empty %s section", hub, astgen.HubFallthroughContext)
 	}
 }

@@ -28,9 +28,12 @@
 //     The no-answer subroutine must handle an empty second argument.
 //   - A subscribe_context on each phone endpoint that equals the context
 //     ServerExtensions renders into.
-//   - Paging, feature codes and outbound routes rendered into that same
-//     context. An office's _X. fallthrough to the hub would otherwise shadow
-//     included contexts.
+//   - Includes in the phones' context, in this order: the contexts that
+//     hold local extensions, such as paging, feature codes and outbound
+//     routes, first, and HubFallthroughContext from ServerHubFallthrough
+//     last, on offices only. Asterisk tries a context's own extensions
+//     first and then each include in order, so the fallthrough's _X.
+//     catches only what nothing else matched.
 //   - The TCP transport bind address, passed to ServerTrunks.
 //
 // TODO: Refactor the functions in this package to avoid ingestion of whole

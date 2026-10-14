@@ -31,6 +31,13 @@ const PageAlertContext = "astgen-page-alert"
 // ServerPageRelayExtensions renders it.
 const PageRelayContext = "astgen-page-relay"
 
+// HubFallthroughContext is the dialplan context that sends every unknown
+// extension on an office server to the hub. ServerHubFallthrough renders
+// it. The phones' context must include it last, after paging and anything
+// else it includes, because Asterisk matches a context's own patterns
+// before any included context and _X. would shadow them.
+const HubFallthroughContext = "astgen-hub-fallthrough"
+
 // publishName returns the name of the outbound-publish section that sends
 // device state to peer.
 func publishName(peer string) string {

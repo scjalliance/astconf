@@ -185,7 +185,9 @@ role with none ends in `Congestion()`, as roles do today.
 **Routing table.** Every server renders, in the phones' context, each
 extension homed elsewhere as `Dial(PJSIP/<ext>@trunk-<home>)`: offices call
 each other directly. An office server falls through unknown extensions to the
-hub (`_X.` to `trunk-<hub>`). On the hub an unknown extension is invalid.
+hub (`_X.` to `trunk-<hub>`) from a context of its own,
+`astgen-hub-fallthrough`, which the phones' context includes last, after
+paging. On the hub an unknown extension is invalid.
 
 **Paging.** The server where a page starts pages its local members and adds
 one relay leg for each other server that hosts members. The leg is
@@ -222,6 +224,7 @@ func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pj
 func ServerAORs(data *astorg.DataSet, p Placement, serverID string, base pjsip.AOR) []pjsip.AOR
 func ServerTrunks(p Placement, serverID, bindAddr string) TrunkConfig // endpoints, aors, identifies, transport, publications
 func ServerExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section
+func ServerHubFallthrough(p Placement, serverID string) dialplan.Section // astgen-hub-fallthrough, offices only
 func ServerTrunkExtensions(data *astorg.DataSet, p Placement, serverID string, vmContext string) dialplan.Section // from-trunk
 func ServerPagingExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section
 func ServerPageRelayExtensions(data *astorg.DataSet, p Placement, serverID string) dialplan.Section // astgen-page-relay
@@ -316,3 +319,9 @@ the Asterisk source. The sections above already read this way.
 12. **Legacy paging (2026-10-14).** The legacy paging generator now shares its
     membership logic with the per-server code. Its output is unchanged, pinned
     by `TestPagingGroupExtensionsLegacy`.
+13. **Hub fallthrough context.** An office's `_X.` route to the hub moved out
+    of the phones' context into `astgen-hub-fallthrough`
+    (`ServerHubFallthrough`). Asterisk matches a context's own patterns
+    before its includes, so an `_X.` there sent paging and every other
+    included extension to the hub. The phones' context includes paging and
+    other local contexts first and the fallthrough last.

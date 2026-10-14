@@ -68,6 +68,19 @@ func renderServer(t *testing.T, data *astorg.DataSet, p astgen.Placement, server
 	alert := astgen.PageAlertSection()
 	fromTrunk := astgen.ServerTrunkExtensions(data, p, serverID, "default")
 
+	// The reference layout: the phones' context holds the extensions and
+	// includes paging and then, on an office, the hub fallthrough. Asterisk
+	// tries the includes in order, so the fallthrough comes last.
+	includes := []string{"paging"}
+	others := []interface{}{&paging, &relay, &alert}
+	if serverID != p.Hub {
+		hubFallthrough := astgen.ServerHubFallthrough(p, serverID)
+		includes = append(includes, astgen.HubFallthroughContext)
+		others = append(others, &hubFallthrough)
+	}
+	others = append(others, &fromTrunk)
+	extensionsConf := render(t, &extensions) + "\n" + includeLines(includes...) + "\n" + render(t, others...)
+
 	phones := astgen.ServerPhones(data, p, serverID, dpma.Phone{}, "https://contacts.example.com/")
 	lines := astgen.ServerLines(data, p, serverID)
 	var dpmaValues []interface{}
@@ -82,7 +95,7 @@ func renderServer(t *testing.T, data *astorg.DataSet, p astgen.Placement, server
 
 	return map[string]string{
 		"pjsip.conf":            render(t, pjsipValues...),
-		"extensions.conf":       render(t, &extensions, &paging, &relay, &alert, &fromTrunk),
+		"extensions.conf":       extensionsConf,
 		"res_digium_phone.conf": render(t, dpmaValues...),
 		"voicemail.conf":        render(t, &mailboxes),
 	}
@@ -236,4 +249,14 @@ func TestGoldenNoPasswords(t *testing.T) {
 			}
 		}
 	}
+}
+
+// includeLines renders an include line for each context, in order, as the
+// consumer adds them to the phones' context.
+func includeLines(contexts ...string) string {
+	var b strings.Builder
+	for _, context := range contexts {
+		b.WriteString("include => " + context + "\n")
+	}
+	return b.String()
 }

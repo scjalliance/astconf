@@ -148,8 +148,9 @@ func extensionHint(p Placement, extension string) dialplan.Hint {
 //
 // It holds a home extension for each extension that lives on serverID and
 // a route over the trunk for each extension that lives elsewhere, in data
-// set order. An office server also sends every unknown extension to the
-// hub. On the hub an unknown extension is invalid.
+// set order. It holds no pattern, so nothing in it shadows the contexts
+// that the phones' context includes. ServerHubFallthrough renders an
+// office's route for unknown extensions in a context of its own.
 //
 // Every extension with a device also gets a hint, wherever it lives, so a
 // busy-lamp key lights from the state of all of its devices. A device on
@@ -175,16 +176,30 @@ func ServerExtensions(data *astorg.DataSet, p Placement, serverID string, contex
 		section.Extensions = append(section.Extensions, exten)
 	}
 
-	if serverID != p.Hub {
-		section.Extensions = append(section.Extensions, dialplan.Extension{
-			Comment: "Unknown extensions go to the hub",
-			Number:  "_X.",
-			Actions: []dialplan.Action{
-				dialplan.DialExpr(dialplan.Cat(dialplan.String("PJSIP/"), dialplan.Var("EXTEN"), dialplan.String("@"+trunkName(p.Hub))), 0),
-			},
-		})
-	}
+	return section
+}
 
+// ServerHubFallthrough generates HubFallthroughContext for serverID. On an
+// office server it holds one _X. extension that sends every unknown
+// extension to the hub. On the hub it is empty, since an unknown extension
+// there is invalid.
+//
+// The phones' context must include HubFallthroughContext after every other
+// context it includes, such as paging. Asterisk tries a context's own
+// extensions first and then each include in order, so the fallthrough
+// catches only what nothing else matched.
+func ServerHubFallthrough(p Placement, serverID string) dialplan.Section {
+	section := dialplan.Section{Context: HubFallthroughContext}
+	if serverID == p.Hub {
+		return section
+	}
+	section.Extensions = append(section.Extensions, dialplan.Extension{
+		Comment: "Unknown extensions go to the hub",
+		Number:  "_X.",
+		Actions: []dialplan.Action{
+			dialplan.DialExpr(dialplan.Cat(dialplan.String("PJSIP/"), dialplan.Var("EXTEN"), dialplan.String("@"+trunkName(p.Hub))), 0),
+		},
+	})
 	return section
 }
 

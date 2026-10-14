@@ -65,7 +65,9 @@ consuming generator can also use
 it to lay out each node's tree and secret manifest:
 
 - **Device host.** A desk phone is hosted by its location's server
-  (`Lookup.LocationServer`). Every softphone is hosted by the hub.
+  (`Lookup.LocationServer`). Every softphone is hosted by the hub. A
+  spare, a desk phone with no location and no owner, is hosted by no
+  server and rendered on every server (Amendment 18).
 - **Extension home.** A person's or role's extension lives on its location's
   server, or on the hub when that location has no server.
 - **Remote devices.** For each extension, the devices hosted on a server other
@@ -88,6 +90,7 @@ and the device or extension is left out:
 | `extension-duplicate` | Two people or roles claim the same extension |
 | `device-conflict` | Desk phones that share a line name sit on different servers, or a softphone reuses a desk line name or another softphone's username |
 | `server-no-address` | A server has an empty `Address`, so no peer can reach it |
+| `owned-no-location` | A desk phone with no location that a person or role owns |
 
 For `extension-duplicate`, the first claimant in data set order (people, then
 roles) keeps the extension and is the record the dialplan renders, and each
@@ -229,7 +232,8 @@ the fallthrough, so a call cannot bounce between servers.
 
 ## DPMA
 
-Phone, line and busy-lamp sections render only on the phone's host server. A
+Phone, line and busy-lamp sections render only on the phone's host server,
+except that a spare's phone and line render on every server. A
 busy-lamp key for someone on another server names the same `PJSIP/<device>`
 hint as a local one and lights from the published state.
 
@@ -362,3 +366,28 @@ The sections above already read this way.
     rendered twice. The dialplan generators now render only the record
     Place chose: the first claimant whose location does not name a missing
     server.
+
+## Amendments (2026-10-14)
+
+18. **Spare desk phones** (project owner, 2026-10-14). A desk phone with
+    an empty `Location` and no owner (no person or role assignment in
+    `Lookup.PhoneAssignments`) is a spare. It may be plugged in at any
+    office, so `Place` lists its MAC address in `Placement.Spares`
+    (sorted) instead of reporting `location-no-server`, and no server
+    hosts it. Every server renders its DPMA phone and line and its pjsip
+    endpoint and aor exactly as the whole-dataset generators render an
+    unassigned phone: each is named by its MAC address, with no extension
+    and no user, so DPMA can provision it anywhere. `Credentials` lists
+    `{kind: "phone", id: <MAC>, section: "<MAC>-auth"}` for every spare on
+    every server, after the trunk credentials, so each node agent writes
+    its auth section. A spare gets no extension, hint, route, `dev-`
+    entry or paging membership, and is left out of every device state
+    filter, both the outbound-publish `@device_state_filter` and the
+    `asterisk-publication` `device_state_filter`, so no two servers
+    publish conflicting state for a device that may register to either.
+    A phone whose `Location` is set but has no server keeps
+    `location-no-server`. A phone with no location that a person or role
+    owns is reported as `owned-no-location` and left out, since nothing
+    says which server should ring it for its owner's extension. A
+    softphone or located desk phone whose device name is a spare's line
+    is reported as `device-conflict`.

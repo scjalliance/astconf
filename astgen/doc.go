@@ -14,6 +14,15 @@
 // naming devices PJSIP/. They only read the data set and the placement, so
 // several servers may render at once from one of each.
 //
+// A spare is a desk phone with no location and no owner. Place lists it in
+// Placement.Spares and no server hosts it. Every server renders its DPMA
+// phone and line and its pjsip endpoint and aor, named by its MAC address,
+// as the whole-dataset generators render an unassigned phone, so DPMA can
+// provision it at any office with no extension and no user. It gets no
+// extension, hint, route or paging membership, and no device state filter
+// names it, so no server publishes state for it. A desk phone with no
+// location that a person or role owns is reported as RuleOwnedNoLocation.
+//
 // These generators never render a secret from the data set: no phone or
 // softphone secret, voicemail code or mailbox access code, and no trunk
 // password, which the node agent writes from the credentials Placement

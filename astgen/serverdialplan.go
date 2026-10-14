@@ -132,28 +132,47 @@ func voicemailTarget(p Placement, home, mailbox string) string {
 	return "PJSIP/vm-" + mailbox + "@" + trunkName(p.Hub)
 }
 
+// extensionHint returns the hint for extension: every device it rings, on
+// any server, sorted. It is empty when the extension has no device.
+func extensionHint(p Placement, extension string) dialplan.Hint {
+	devices := append([]string(nil), p.Devices[extension]...)
+	sort.Strings(devices)
+	var hint dialplan.Hint
+	for _, device := range devices {
+		hint = append(hint, dialplan.PJSIP(device))
+	}
+	return hint
+}
+
 // ServerExtensions generates the phones' dialplan section for serverID.
 //
 // It holds a home extension for each extension that lives on serverID and
 // a route over the trunk for each extension that lives elsewhere, in data
 // set order. An office server also sends every unknown extension to the
 // hub. On the hub an unknown extension is invalid.
+//
+// Every extension with a device also gets a hint, wherever it lives, so a
+// busy-lamp key lights from the state of all of its devices. A device on
+// another server reports its state through the trunk's state publication.
 func ServerExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section {
 	section := dialplan.Section{Context: context}
 
 	for _, owner := range extensionOwners(data, p) {
 		home := p.Homes[owner.Extension]
+		var exten dialplan.Extension
 		if home == serverID {
-			section.Extensions = append(section.Extensions, homeExtension(p, owner))
-			continue
+			exten = homeExtension(p, owner)
+		} else {
+			exten = dialplan.Extension{
+				Comment: owner.Comment,
+				Number:  owner.Extension,
+				Actions: []dialplan.Action{
+					dialplan.Dial(dialplan.PJSIP(owner.Extension+"@"+trunkName(home)), 0),
+				},
+			}
 		}
-		section.Extensions = append(section.Extensions, dialplan.Extension{
-			Comment: owner.Comment,
-			Number:  owner.Extension,
-			Actions: []dialplan.Action{
-				dialplan.Dial(dialplan.PJSIP(owner.Extension+"@"+trunkName(home)), 0),
-			},
-		})
+		exten.Hint = extensionHint(p, owner.Extension)
+		section.Extensions = append(section.Extensions, exten)
 	}
 
 	if serverID != p.Hub {

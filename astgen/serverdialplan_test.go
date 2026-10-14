@@ -19,6 +19,7 @@ func TestServerExtensionsOffice(t *testing.T) {
 	want := "[from-internal]\n" +
 		"\n" +
 		"; Fred Flintstone\n" +
+		"exten => 100,hint,PJSIP/fred&PJSIP/fred.soft\n" +
 		"exten => 100,1,Noop(Call fred)\n" +
 		"same => n,Gosub(pre-answer,s,1(${EXTEN}))\n" +
 		"same => n,Set(ASTGEN_DIAL=&PJSIP/dev-fred.soft@trunk-hub)\n" +
@@ -27,15 +28,19 @@ func TestServerExtensionsOffice(t *testing.T) {
 		"same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-100@trunk-hub))\n" +
 		"\n" +
 		"; Barney Rubble\n" +
+		"exten => 101,hint,PJSIP/barney\n" +
 		"exten => 101,1,Dial(PJSIP/101@trunk-den)\n" +
 		"\n" +
 		"; Wilma Flintstone\n" +
+		"exten => 102,hint,PJSIP/wilma.soft\n" +
 		"exten => 102,1,Dial(PJSIP/102@trunk-hub)\n" +
 		"\n" +
 		"; Lobby\n" +
+		"exten => 200,hint,PJSIP/lobby\n" +
 		"exten => 200,1,Dial(PJSIP/200@trunk-den)\n" +
 		"\n" +
 		"; Yard\n" +
+		"exten => 201,hint,PJSIP/yard.soft\n" +
 		"exten => 201,1,Dial(PJSIP/201@trunk-hub)\n" +
 		"\n" +
 		"; Unknown extensions go to the hub\n" +
@@ -57,12 +62,15 @@ func TestServerExtensionsHub(t *testing.T) {
 	want := "[from-internal]\n" +
 		"\n" +
 		"; Fred Flintstone\n" +
+		"exten => 100,hint,PJSIP/fred&PJSIP/fred.soft\n" +
 		"exten => 100,1,Dial(PJSIP/100@trunk-qry)\n" +
 		"\n" +
 		"; Barney Rubble\n" +
+		"exten => 101,hint,PJSIP/barney\n" +
 		"exten => 101,1,Dial(PJSIP/101@trunk-den)\n" +
 		"\n" +
 		"; Wilma Flintstone\n" +
+		"exten => 102,hint,PJSIP/wilma.soft\n" +
 		"exten => 102,1,Noop(Call wilma)\n" +
 		"same => n,Gosub(pre-answer,s,1(${EXTEN}))\n" +
 		"same => n,Set(ASTGEN_DIAL=)\n" +
@@ -71,9 +79,11 @@ func TestServerExtensionsHub(t *testing.T) {
 		"same => n,Gosub(no-answer,s,1(${EXTEN}))\n" +
 		"\n" +
 		"; Lobby\n" +
+		"exten => 200,hint,PJSIP/lobby\n" +
 		"exten => 200,1,Dial(PJSIP/200@trunk-den)\n" +
 		"\n" +
 		"; Yard\n" +
+		"exten => 201,hint,PJSIP/yard.soft\n" +
 		"exten => 201,1,Noop(Call yard)\n" +
 		"same => n,Gosub(pre-answer,s,1(${EXTEN}))\n" +
 		"same => n,Set(ASTGEN_DIAL=)\n" +
@@ -96,6 +106,7 @@ func TestHomeExtensionOnlyRemoteDevices(t *testing.T) {
 	section := astgen.ServerExtensions(data, p, "qry", "from-internal")
 	got := render(t, &section)
 	want := "; Fred Flintstone\n" +
+		"exten => 100,hint,PJSIP/fred.soft\n" +
 		"exten => 100,1,Noop(Call fred)\n" +
 		"same => n,Gosub(pre-answer,s,1(${EXTEN}))\n" +
 		"same => n,Set(ASTGEN_DIAL=&PJSIP/dev-fred.soft@trunk-hub)\n" +

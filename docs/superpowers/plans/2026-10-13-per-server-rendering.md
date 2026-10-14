@@ -46,13 +46,13 @@ These settle what the spec left open or got wrong. Each was checked against the 
 1. **Own-device filter lives on the outbound-publish.** In `res_pjsip_publish_asterisk.c`, `asterisk-publication`'s `device_state_filter` filters *incoming* events ("Optional regular expression used to filter what devices we accept events for"). The outgoing filter is the outbound-publish extended option `@device_state_filter`, read with `ast_sorcery_object_get_extended(configuration, "device_state_filter")`. So `publish-<peer>` carries `@device_state_filter=<this server's devices>`, and `asterisk-publication <peer>` carries `device_state_filter=<the peer's devices>`. The spec's intent (each server publishes only its own devices) holds; Asterisk also drops events that did not originate locally by EID, so nothing echoes.
 2. **`mailbox_state=yes` goes on the receiver.** `mailbox_state` means "permit incoming mailbox state events". The hub sets `mailboxstate_publish=publish-mwi-<peer>` and does not set `mailbox_state`; each office sets `mailbox_state=yes` on its `asterisk-publication hub`.
 3. **The outbound-publish URI carries a user part.** `res_pjsip_pubsub.c` finds the inbound-publication by the request URI's user part (`ast_sorcery_retrieve_by_id(..., "inbound-publication", resource_name)`). Server S publishing to peer P sends to `sip:trunk-S@<P address>:5060;transport=tcp`, which matches P's `inbound-publication trunk-S`.
-4. **Voicemail target is the no-answer macro's second argument.** A home extension ends `Macro(no-answer,${EXTEN},<target>)`. On an office the target is `PJSIP/vm-<mailbox>@trunk-<hub>`; on the hub it is `Local/vm-<mailbox>@from-trunk`, so the hand-written macro can `Dial(${ARG2})` everywhere. A person's mailbox is their extension when they have a voicemail code; with none, the macro gets no target, as today. A role's mailbox is `MailboxNumber`; a role with none ends in `Congestion()`, as today.
+4. **Gosub, not Macro, and the voicemail target is the no-answer subroutine's second argument.** The target is Asterisk 22, and Asterisk 21 removed `app_macro`, so the per-server dialplan calls the hand-written subroutines with `Gosub`: `Gosub(pre-answer,s,1(${EXTEN}))` and `Gosub(no-answer,s,1(${EXTEN},<target>))`. They read `${ARG1}` and `${ARG2}` and must end in `Return`. On an office the target is `PJSIP/vm-<mailbox>@trunk-<hub>`; on the hub it is `Local/vm-<mailbox>@from-trunk`, so the subroutine can `Dial(${ARG2})` everywhere. A person's mailbox is their extension when they have a voicemail code; with none, the subroutine gets no target. A role's mailbox is `MailboxNumber`; a role with none ends in `Congestion()`, as today. The old `PhoneExtensions` keeps `Macro`.
 5. **"Same extensions" in the equivalence test.** Decision 1 of the spec changes how a ring treats busy devices, so dialplan actions cannot match the old generator. The test requires byte equality for endpoints, aors, lines, phones and mailboxes; byte equality for paging after renaming `SIP/` to `PJSIP/`; and, for phone extensions, the same numbers, comments and set of devices.
-6. **Call waiting is removed in the per-server path** (Emmaly's decision, 2026-10-13; spec Decisions). The old `PhoneExtensions` rings every device when `CustomPresence` says "with Call Waiting Enabled". The per-server ring adds a local device only when it is `NOT_INUSE`, so a busy device never rings and the override is not rendered. The old generators keep theirs.
+6. **Call waiting is removed in the per-server path** (project owner's decision, 2026-10-13; spec Decisions). The old `PhoneExtensions` rings every device when `CustomPresence` says "with Call Waiting Enabled". The per-server ring adds a local device only when it is `NOT_INUSE`, so a busy device never rings and the override is not rendered. The old generators keep theirs.
 7. **Duplicate extensions.** The first claimant in data set order (people, then roles) keeps the extension; each later one is reported as `extension-duplicate` and left out.
 8. **One extra problem rule, `device-conflict`.** Two desk phones that share a line name (a person with desk phones at two offices) cannot be hosted on two servers under one endpoint name. The first phone in data set order wins; the later one is reported and left out.
-9. **dialplan additions.** The ring needs a dial string built at run time and `Busy()` and `VoiceMail()`; paging needs a predial subroutine. Task 6 adds `Busy`, `VoiceMail`, `Cat`, `Substring`, `DialExpr`, `Return`, `PJSIPHeader`, `Channel`, `PredialTarget` and a `Predial` field on `PageApp` to the dialplan package in PR 2. A `PageApp` with no `Predial` renders exactly as before, so the old paging output is unchanged.
-10. **No `ServerAuths`.** Phone auth sections carry passwords, so astgen does not render them per server. The node agent writes them from `Placement.HostedDevices`, as `_phone` contracts section 4 already describes for phone auth.
+9. **dialplan additions.** The ring needs a dial string built at run time and `Busy()` and `VoiceMail()`; paging needs a predial subroutine. Task 6 adds `Busy`, `VoiceMail`, `Cat`, `Substring`, `DialExpr`, `Subroutine`, `Return`, `PJSIPHeader`, `Channel`, `PredialTarget` and a `Predial` field on `PageApp` to the dialplan package in PR 2. A `PageApp` with no `Predial` renders exactly as before, so the old paging output is unchanged.
+10. **No `ServerAuths`.** Phone auth sections carry passwords, so astgen does not render them per server. The node agent writes them from `Placement.HostedDevices`, as the system's contracts already describe for phone auth.
 11. **`bindAddr` is a host, not host and port.** `ServerTrunks` appends `:5060` with `net.JoinHostPort`.
 
 12. **Paging Alert-Info uses Page's `b()` predial option, and astgen renders the subroutine.** `SIPAddHeader` does nothing on a PJSIP channel. Every per-server `Page` for a group with an alert gets `b(astgen-page-alert^s^1(<alert>))`, which runs on each callee channel before it is dialed. `PageAlertSection()` renders the `astgen-page-alert` context, so the subroutine travels with the config instead of being hand-written on each node. It sets `PJSIP_HEADER(add,Alert-Info)` only when `CHANNEL(channeltype)` is `PJSIP`: a relay leg is a local channel with no SIP headers, and the receiving server adds the header for its own members. The old `PagingGroupExtensions` keeps `SIPAddHeader` and its output is unchanged.
@@ -671,8 +671,12 @@ import (
 //
 // DeviceState and MailboxState permit incoming state from that server, and
 // the two filters limit which incoming devices and mailboxes are accepted.
-// What is sent is limited by the filters on the outbound-publish sections
-// that DeviceStatePublish and MailboxStatePublish name.
+//
+// Sending does not depend on this section. An outbound-publish with
+// event=asterisk-devicestate or event=asterisk-mwi publishes on its own, and
+// its @device_state_filter or @mailbox_state_filter limits what it sends.
+// DeviceStatePublish and MailboxStatePublish name the outbound-publish that
+// is used to request a full state refresh from that server.
 //
 // Asterisk-publication sections are written once per peer and are not
 // generated per device, so there are no overlay or merge functions for
@@ -880,7 +884,7 @@ Phase 2 builds on Phase 1. Start it from the branch with Tasks 1 to 5 committed.
 ### Task 6: dialplan applications for the per-server ring and paging
 
 **Files:**
-- Create: `dialplan/busy.go`, `dialplan/voicemail.go`, `dialplan/cat.go`, `dialplan/dialexpr.go`, `dialplan/return.go`, `dialplan/pjsipheader.go`, `dialplan/channel.go`, `dialplan/predial.go`
+- Create: `dialplan/busy.go`, `dialplan/voicemail.go`, `dialplan/cat.go`, `dialplan/dialexpr.go`, `dialplan/subroutine.go`, `dialplan/return.go`, `dialplan/pjsipheader.go`, `dialplan/channel.go`, `dialplan/predial.go`
 - Modify: `dialplan/page.go` (whole file; adds `Predial`)
 - Test: `dialplan/perserver_test.go`
 
@@ -892,6 +896,7 @@ Phase 2 builds on Phase 1. Start it from the branch with Tasks 1 to 5 committed.
   - `func Cat(parts ...Expression) CatExpr` (renders the parts joined, as a literal)
   - `func Substring(name Var, offset int) SubstringExpr` (renders `${name:offset}`)
   - `func DialExpr(target Expression, seconds int) DialExprApp` (renders `Dial(<target>[,seconds])`)
+  - `func Subroutine(context, extension string, priority int, args ...Expression) SubroutineApp` (renders `Gosub(context,extension,priority(arg1,arg2))`; the existing `GosubApp` writes arguments after the priority as separate arguments and accepts no variables, so it cannot express `${EXTEN}`)
   - `func Return() ReturnApp`
   - `func PJSIPHeader(action, name string) PJSIPHeaderFunc` (a `Reference`, so it can be `Set`'s name)
   - `func Channel(item string) ChannelFunc` (quoted when compared)
@@ -1051,11 +1056,63 @@ func TestPagePredialInvalid(t *testing.T) {
 		})
 	}
 }
+
+// TestSubroutine renders Gosub calls with arguments in parentheses after the
+// priority, which is how Asterisk passes them as ${ARG1}, ${ARG2}.
+func TestSubroutine(t *testing.T) {
+	section := dialplan.Section{
+		Context: "test",
+		Extensions: []dialplan.Extension{
+			{
+				Number: "100",
+				Actions: []dialplan.Action{
+					dialplan.Subroutine("pre-answer", "s", 1, dialplan.Var("EXTEN")),
+					dialplan.Subroutine("no-answer", "s", 1, dialplan.Var("EXTEN"), dialplan.String("PJSIP/vm-100@trunk-hub")),
+					dialplan.Subroutine("cleanup", "s", 1),
+				},
+			},
+		},
+	}
+	var buf bytes.Buffer
+	if err := astconf.NewEncoder(&buf).Encode(&section); err != nil {
+		t.Fatalf("Encode() error: %v", err)
+	}
+	want := "[test]\n" +
+		"\n" +
+		"exten => 100,1,Gosub(pre-answer,s,1(${EXTEN}))\n" +
+		"same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-100@trunk-hub))\n" +
+		"same => n,Gosub(cleanup,s,1)\n"
+	if got := buf.String(); got != want {
+		t.Errorf("Encode() =\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestSubroutineInvalid checks that a Gosub call that would break the line
+// is rejected.
+func TestSubroutineInvalid(t *testing.T) {
+	tests := []struct {
+		name   string
+		action dialplan.Action
+	}{
+		{name: "comma in context", action: dialplan.Subroutine("a,b", "s", 1)},
+		{name: "paren in argument", action: dialplan.Subroutine("a", "s", 1, dialplan.String("x)"))},
+		{name: "priority zero", action: dialplan.Subroutine("a", "s", 0)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			section := dialplan.Section{Context: "test", Extensions: []dialplan.Extension{{Number: "1", Actions: []dialplan.Action{tt.action}}}}
+			var buf bytes.Buffer
+			if err := astconf.NewEncoder(&buf).Encode(&section); err == nil {
+				t.Fatalf("Encode() succeeded, want an error:\n%s", buf.String())
+			}
+		})
+	}
+}
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `go test ./dialplan -run 'TestPerServer|TestPagePredial' -v`
+Run: `go test ./dialplan -run 'TestPerServer|TestPagePredial|TestSubroutine' -v`
 Expected: FAIL to compile with `undefined: dialplan.Cat` (and the other new names).
 
 - [ ] **Step 3: Write the implementation**
@@ -1236,6 +1293,81 @@ func (dial DialExprApp) App() AppCall {
 // Validate returns an error if the target is invalid.
 func (dial DialExprApp) Validate() error {
 	return validate(dial.Target)
+}
+```
+
+Create `dialplan/subroutine.go`:
+
+```go
+package dialplan
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+// Subroutine returns a dialplan application that calls a subroutine with
+// Gosub, passing args in parentheses after the priority. The subroutine
+// reads them as ${ARG1}, ${ARG2} and so on, and must end in Return.
+//
+// Unlike GosubApp, which writes each argument after the priority as a
+// separate application argument, Subroutine writes them the way Asterisk
+// passes them, and each argument is an expression, so it may be a variable.
+func Subroutine(context, extension string, priority int, args ...Expression) SubroutineApp {
+	return SubroutineApp{
+		Context:   context,
+		Extension: extension,
+		Priority:  priority,
+		Args:      args,
+	}
+}
+
+// SubroutineApp is a dialplan application that calls a subroutine with
+// arguments.
+//
+// https://docs.asterisk.org/Asterisk_22_Documentation/API_Documentation/Dialplan_Applications/Gosub/
+type SubroutineApp struct {
+	Context   string
+	Extension string
+	Priority  int // Should be >= 1
+	Args      []Expression
+}
+
+// App returns the assembled application call.
+func (sub SubroutineApp) App() AppCall {
+	target := strconv.Itoa(sub.Priority)
+	if len(sub.Args) > 0 {
+		args := make([]string, 0, len(sub.Args))
+		for _, arg := range sub.Args {
+			args = append(args, arg.Expr().String())
+		}
+		target += "(" + strings.Join(args, ",") + ")"
+	}
+	return AppCall{
+		Name: "Gosub",
+		Args: []string{sub.Context, sub.Extension, target},
+	}
+}
+
+// Validate returns an error if the priority is below one, or if the context,
+// extension or any argument is invalid.
+func (sub SubroutineApp) Validate() error {
+	if sub.Priority < 1 {
+		return fmt.Errorf("gosub priority must be at least 1, got %d", sub.Priority)
+	}
+	if err := errorIfAny("gosub context", sub.Context, invalidArgChars); err != nil {
+		return err
+	}
+	if err := errorIfAny("gosub extension", sub.Extension, invalidArgChars); err != nil {
+		return err
+	}
+	for _, arg := range sub.Args {
+		if err := validate(arg); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 ```
 
@@ -1522,19 +1654,21 @@ func (app PageApp) Validate() error {
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `go test ./dialplan -v -run 'TestPerServer|TestPagePredial' && gofmt -l . && go vet ./dialplan && go test ./dialplan`
-Expected: `TestPerServerApps`, `TestPerServerAppsInvalid`, `TestPagePredialAndHeaders` and `TestPagePredialInvalid` PASS. The existing dialplan tests still pass, including `Example`, and `TestPagePredialAndHeaders` shows a `Page` with no predial still renders `Page(PJSIP/fred,is)`.
+Run: `go test ./dialplan -v -run 'TestPerServer|TestPagePredial|TestSubroutine' && gofmt -l . && go vet ./dialplan && go test ./dialplan`
+Expected: `TestPerServerApps`, `TestPerServerAppsInvalid`, `TestPagePredialAndHeaders`, `TestPagePredialInvalid`, `TestSubroutine` and `TestSubroutineInvalid` PASS. The existing dialplan tests still pass, including `Example`, and `TestPagePredialAndHeaders` shows a `Page` with no predial still renders `Page(PJSIP/fred,is)`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add dialplan/busy.go dialplan/voicemail.go dialplan/cat.go dialplan/dialexpr.go dialplan/return.go dialplan/pjsipheader.go dialplan/channel.go dialplan/predial.go dialplan/page.go dialplan/perserver_test.go
+git add dialplan/busy.go dialplan/voicemail.go dialplan/cat.go dialplan/dialexpr.go dialplan/subroutine.go dialplan/return.go dialplan/pjsipheader.go dialplan/channel.go dialplan/predial.go dialplan/page.go dialplan/perserver_test.go
 git commit -F - <<'EOF'
 feat(dialplan): add the pieces the per-server dialplan needs
 
 The per-server ring builds its dial string in a channel variable at run
 time, so it needs to append to a variable, read part of it, and dial an
-expression rather than a fixed device list. Paging on PJSIP adds its
+expression rather than a fixed device list. It calls its hand-written
+subroutines with Gosub and arguments, since Asterisk 21 removed Macro.
+Paging on PJSIP adds its
 Alert-Info header in a predial subroutine, so Page gains a predial target
 and the dialplan gains Return, PJSIP_HEADER and CHANNEL.
 
@@ -3357,12 +3491,12 @@ EOF
 - Test: `astgen/serverdialplan_test.go`
 
 **Interfaces:**
-- Consumes: `Placement` fields and methods (Task 7); `TrunkContext`, `trunkName` (Task 7); `pagingMembers`, `splitMembers`, `pageActions` (Task 10); `Mailboxes` (existing); `dialplan.Busy`, `dialplan.VoiceMail`, `dialplan.Cat`, `dialplan.Substring`, `dialplan.DialExpr` (Task 6).
+- Consumes: `Placement` fields and methods (Task 7); `TrunkContext`, `trunkName` (Task 7); `pagingMembers`, `splitMembers`, `pageActions` (Task 10); `Mailboxes` (existing); `dialplan.Busy`, `dialplan.VoiceMail`, `dialplan.Cat`, `dialplan.Substring`, `dialplan.DialExpr`, `dialplan.Subroutine` (Task 6).
 - Produces:
   - `func ServerExtensions(data *astorg.DataSet, p Placement, serverID string, context string) dialplan.Section`
   - `func ServerTrunkExtensions(data *astorg.DataSet, p Placement, serverID string, vmContext string) dialplan.Section` (its context is always `from-trunk`)
 
-A home extension: `Noop`, `Macro(pre-answer)`, `Set(ASTGEN_DIAL=<remote legs>)`, one `ExecIf(DEVICE_STATE=NOT_INUSE?Set(...&PJSIP/<device>))` per local device, `ExecIf(LEN>0?Dial(${ASTGEN_DIAL:1},20))`, then the voicemail step from Spec decision 4. The leading `&` that every append adds is dropped by `${ASTGEN_DIAL:1}`.
+A home extension: `Noop`, `Gosub(pre-answer,s,1(${EXTEN}))`, `Set(ASTGEN_DIAL=<remote legs>)`, one `ExecIf(DEVICE_STATE=NOT_INUSE?Set(...&PJSIP/<device>))` per local device, `ExecIf(LEN>0?Dial(${ASTGEN_DIAL:1},20))`, then the voicemail step from Spec decision 4. The leading `&` that every append adds is dropped by `${ASTGEN_DIAL:1}`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3391,11 +3525,11 @@ func TestServerExtensionsOffice(t *testing.T) {
 		"\n" +
 		"; Fred Flintstone\n" +
 		"exten => 100,1,Noop(Call fred)\n" +
-		"same => n,Macro(pre-answer,${EXTEN})\n" +
+		"same => n,Gosub(pre-answer,s,1(${EXTEN}))\n" +
 		"same => n,Set(ASTGEN_DIAL=&PJSIP/dev-fred.soft@trunk-hub)\n" +
 		"same => n,ExecIf($[${DEVICE_STATE(PJSIP/fred)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/fred))\n" +
 		"same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))\n" +
-		"same => n,Macro(no-answer,${EXTEN},PJSIP/vm-100@trunk-hub)\n" +
+		"same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-100@trunk-hub))\n" +
 		"\n" +
 		"; Barney Rubble\n" +
 		"exten => 101,1,Dial(PJSIP/101@trunk-den)\n" +
@@ -3417,7 +3551,7 @@ func TestServerExtensionsOffice(t *testing.T) {
 }
 
 // TestServerExtensionsHub checks the hub's own extensions. Wilma has no
-// mailbox, so the no-answer macro gets no target. The yard role has no
+// mailbox, so the no-answer subroutine gets no target. The yard role has no
 // mailbox, so it ends in congestion as a role does today. The hub has no
 // fallthrough, so an unknown extension is invalid.
 func TestServerExtensionsHub(t *testing.T) {
@@ -3435,18 +3569,18 @@ func TestServerExtensionsHub(t *testing.T) {
 		"\n" +
 		"; Wilma Flintstone\n" +
 		"exten => 102,1,Noop(Call wilma)\n" +
-		"same => n,Macro(pre-answer,${EXTEN})\n" +
+		"same => n,Gosub(pre-answer,s,1(${EXTEN}))\n" +
 		"same => n,Set(ASTGEN_DIAL=)\n" +
 		"same => n,ExecIf($[${DEVICE_STATE(PJSIP/wilma.soft)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/wilma.soft))\n" +
 		"same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))\n" +
-		"same => n,Macro(no-answer,${EXTEN})\n" +
+		"same => n,Gosub(no-answer,s,1(${EXTEN}))\n" +
 		"\n" +
 		"; Lobby\n" +
 		"exten => 200,1,Dial(PJSIP/200@trunk-den)\n" +
 		"\n" +
 		"; Yard\n" +
 		"exten => 201,1,Noop(Call yard)\n" +
-		"same => n,Macro(pre-answer,${EXTEN})\n" +
+		"same => n,Gosub(pre-answer,s,1(${EXTEN}))\n" +
 		"same => n,Set(ASTGEN_DIAL=)\n" +
 		"same => n,ExecIf($[${DEVICE_STATE(PJSIP/yard.soft)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/yard.soft))\n" +
 		"same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))\n" +
@@ -3468,10 +3602,10 @@ func TestHomeExtensionOnlyRemoteDevices(t *testing.T) {
 	got := render(t, &section)
 	want := "; Fred Flintstone\n" +
 		"exten => 100,1,Noop(Call fred)\n" +
-		"same => n,Macro(pre-answer,${EXTEN})\n" +
+		"same => n,Gosub(pre-answer,s,1(${EXTEN}))\n" +
 		"same => n,Set(ASTGEN_DIAL=&PJSIP/dev-fred.soft@trunk-hub)\n" +
 		"same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))\n" +
-		"same => n,Macro(no-answer,${EXTEN},PJSIP/vm-100@trunk-hub)\n" +
+		"same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-100@trunk-hub))\n" +
 		"\n"
 	if !strings.Contains(got, want) {
 		t.Errorf("ServerExtensions(qry) rendered:\n%s\nwant it to contain:\n%s", got, want)
@@ -3490,11 +3624,11 @@ func TestServerTrunkExtensionsOffice(t *testing.T) {
 		"\n" +
 		"; Fred Flintstone\n" +
 		"exten => 100,1,Noop(Call fred)\n" +
-		"same => n,Macro(pre-answer,${EXTEN})\n" +
+		"same => n,Gosub(pre-answer,s,1(${EXTEN}))\n" +
 		"same => n,Set(ASTGEN_DIAL=&PJSIP/dev-fred.soft@trunk-hub)\n" +
 		"same => n,ExecIf($[${DEVICE_STATE(PJSIP/fred)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/fred))\n" +
 		"same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))\n" +
-		"same => n,Macro(no-answer,${EXTEN},PJSIP/vm-100@trunk-hub)\n" +
+		"same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-100@trunk-hub))\n" +
 		"\n" +
 		"; Ring 000fd3000003 for another server\n" +
 		"exten => dev-000fd3000003,1,ExecIf($[${DEVICE_STATE(PJSIP/000fd3000003)}!=NOT_INUSE]?Busy())\n" +
@@ -3664,6 +3798,10 @@ func remoteDevice(device, host string) string {
 //
 // Each local device joins the ring only when it is idle. Each remote device
 // always joins, and its own server answers busy for it when it is in use.
+//
+// The pre-answer and no-answer subroutines are hand-written on each server
+// and called with Gosub, because Asterisk 21 removed Macro. Each reads its
+// arguments as ${ARG1} and ${ARG2} and must end in Return.
 func homeExtension(p Placement, owner extensionOwner) dialplan.Extension {
 	home := p.Homes[owner.Extension]
 
@@ -3681,7 +3819,7 @@ func homeExtension(p Placement, owner extensionOwner) dialplan.Extension {
 
 	actions := []dialplan.Action{
 		dialplan.Noop(fmt.Sprintf("Call %s", owner.Username)),
-		dialplan.Macro("pre-answer", dialplan.Var("EXTEN")),
+		dialplan.Subroutine("pre-answer", "s", 1, dialplan.Var("EXTEN")),
 		dialplan.Set(dialVar, dialplan.String(remote.String())),
 	}
 	for _, device := range p.Devices[owner.Extension] {
@@ -3701,11 +3839,11 @@ func homeExtension(p Placement, owner extensionOwner) dialplan.Extension {
 
 	switch {
 	case owner.Mailbox != "":
-		actions = append(actions, dialplan.Macro("no-answer", dialplan.Var("EXTEN"), dialplan.String(voicemailTarget(p, home, owner.Mailbox))))
+		actions = append(actions, dialplan.Subroutine("no-answer", "s", 1, dialplan.Var("EXTEN"), dialplan.String(voicemailTarget(p, home, owner.Mailbox))))
 	case owner.Role:
 		actions = append(actions, dialplan.Congestion())
 	default:
-		actions = append(actions, dialplan.Macro("no-answer", dialplan.Var("EXTEN")))
+		actions = append(actions, dialplan.Subroutine("no-answer", "s", 1, dialplan.Var("EXTEN")))
 	}
 
 	return dialplan.Extension{
@@ -3715,8 +3853,8 @@ func homeExtension(p Placement, owner extensionOwner) dialplan.Extension {
 	}
 }
 
-// voicemailTarget returns the dial target that the no-answer macro on home
-// sends a caller to for mailbox. Voicemail lives on the hub, so the hub
+// voicemailTarget returns the dial target that the no-answer subroutine on
+// home sends a caller to for mailbox. Voicemail lives on the hub, so the hub
 // reaches its own from-trunk entry through a local channel and every other
 // server reaches it over the trunk.
 func voicemailTarget(p Placement, home, mailbox string) string {
@@ -4080,22 +4218,22 @@ exten => 100,1,Dial(PJSIP/100@trunk-qry)
 
 ; Barney Rubble
 exten => 101,1,Noop(Call barney)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/barney)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/barney))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
-same => n,Macro(no-answer,${EXTEN},PJSIP/vm-101@trunk-hub)
+same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-101@trunk-hub))
 
 ; Wilma Flintstone
 exten => 102,1,Dial(PJSIP/102@trunk-hub)
 
 ; Lobby
 exten => 200,1,Noop(Call lobby)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/lobby)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/lobby))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
-same => n,Macro(no-answer,${EXTEN},PJSIP/vm-300@trunk-hub)
+same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-300@trunk-hub))
 
 ; Yard
 exten => 201,1,Dial(PJSIP/201@trunk-hub)
@@ -4128,19 +4266,19 @@ same => n,Return()
 
 ; Barney Rubble
 exten => 101,1,Noop(Call barney)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/barney)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/barney))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
-same => n,Macro(no-answer,${EXTEN},PJSIP/vm-101@trunk-hub)
+same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-101@trunk-hub))
 
 ; Lobby
 exten => 200,1,Noop(Call lobby)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/lobby)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/lobby))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
-same => n,Macro(no-answer,${EXTEN},PJSIP/vm-300@trunk-hub)
+same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-300@trunk-hub))
 
 ; Ring barney for another server
 exten => dev-barney,1,ExecIf($[${DEVICE_STATE(PJSIP/barney)}!=NOT_INUSE]?Busy())
@@ -4329,18 +4467,18 @@ exten => 101,1,Dial(PJSIP/101@trunk-den)
 
 ; Wilma Flintstone
 exten => 102,1,Noop(Call wilma)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/wilma.soft)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/wilma.soft))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
-same => n,Macro(no-answer,${EXTEN})
+same => n,Gosub(no-answer,s,1(${EXTEN}))
 
 ; Lobby
 exten => 200,1,Dial(PJSIP/200@trunk-den)
 
 ; Yard
 exten => 201,1,Noop(Call yard)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/yard.soft)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/yard.soft))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
@@ -4374,15 +4512,15 @@ same => n,Return()
 
 ; Wilma Flintstone
 exten => 102,1,Noop(Call wilma)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/wilma.soft)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/wilma.soft))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
-same => n,Macro(no-answer,${EXTEN})
+same => n,Gosub(no-answer,s,1(${EXTEN}))
 
 ; Yard
 exten => 201,1,Noop(Call yard)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/yard.soft)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/yard.soft))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
@@ -4577,11 +4715,11 @@ device_state_filter = ^PJSIP/(000fd3000003|fred)$
 
 ; Fred Flintstone
 exten => 100,1,Noop(Call fred)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=&PJSIP/dev-fred.soft@trunk-hub)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/fred)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/fred))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
-same => n,Macro(no-answer,${EXTEN},PJSIP/vm-100@trunk-hub)
+same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-100@trunk-hub))
 
 ; Barney Rubble
 exten => 101,1,Dial(PJSIP/101@trunk-den)
@@ -4623,11 +4761,11 @@ same => n,Return()
 
 ; Fred Flintstone
 exten => 100,1,Noop(Call fred)
-same => n,Macro(pre-answer,${EXTEN})
+same => n,Gosub(pre-answer,s,1(${EXTEN}))
 same => n,Set(ASTGEN_DIAL=&PJSIP/dev-fred.soft@trunk-hub)
 same => n,ExecIf($[${DEVICE_STATE(PJSIP/fred)}=NOT_INUSE]?Set(ASTGEN_DIAL=${ASTGEN_DIAL}&PJSIP/fred))
 same => n,ExecIf($[${LEN(${ASTGEN_DIAL})}>0]?Dial(${ASTGEN_DIAL:1},20))
-same => n,Macro(no-answer,${EXTEN},PJSIP/vm-100@trunk-hub)
+same => n,Gosub(no-answer,s,1(${EXTEN},PJSIP/vm-100@trunk-hub))
 
 ; Ring 000fd3000003 for another server
 exten => dev-000fd3000003,1,ExecIf($[${DEVICE_STATE(PJSIP/000fd3000003)}!=NOT_INUSE]?Busy())

@@ -58,12 +58,16 @@ type TrunkPair struct {
 // in both directions. The expected username is the pair ID, which both
 // ends already share.
 //
-// For a spare desk phone, the node agent writes the phone's auth section,
-// named after its MAC address, as it does for any desk phone it hosts.
-// Every server lists every spare, since a spare may register anywhere.
+// For a desk phone, the node agent writes the auth section of the phone's
+// line, with the secret derived from ID, the MAC address. The section is
+// the one the line's pjsip endpoint names: "<line>-auth", which for an
+// unassigned phone or a spare is "<MAC>-auth". When several phones share
+// a line, one credential covers the line, derived from the MAC address of
+// the first of them in data set order. A consumer must write the section
+// that Section names and never build the name itself.
 type Credential struct {
 	Kind    string // "trunk" or "phone"
-	ID      string // The trunk pair ID, from which both ends derive the same secret, or a spare phone's MAC address
+	ID      string // The trunk pair ID, from which both ends derive the same secret, or a desk phone's MAC address
 	Section string // The pjsip auth section the secret is written to
 }
 
@@ -84,6 +88,7 @@ type Placement struct {
 	Remote     map[string]map[string][]string // Extension to host server ID to the devices it rings there, sorted, for every host other than its home
 	TrunkPairs []TrunkPair                    // Every unordered pair of servers that both have an address, sorted by ID
 	Spares     []string                       // MAC addresses of the spare desk phones, sorted; every server renders each one
+	LineMACs   map[string]string              // Line name of each hosted desk phone and spare to the MAC address its credential derives from: the first phone on the line in data set order
 }
 
 // Place decides which server hosts each device and which server owns each
@@ -140,6 +145,8 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 		Owners:  make(map[string]string),
 		Devices: make(map[string][]string),
 		Remote:  make(map[string]map[string][]string),
+
+		LineMACs: make(map[string]string),
 	}
 	for id, server := range lookup.ServerByID {
 		p.Servers[id] = server
@@ -178,6 +185,7 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 			if !spares[name] {
 				spares[name] = true
 				p.Spares = append(p.Spares, phone.MAC)
+				p.LineMACs[name] = phone.MAC
 			}
 			continue
 		}
@@ -220,6 +228,9 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 		}
 		p.Phones[phone.MAC] = id
 		p.Hosts[name] = id
+		if _, found := p.LineMACs[name]; !found {
+			p.LineMACs[name] = phone.MAC
+		}
 	}
 	sort.Strings(p.Spares)
 
@@ -399,11 +410,12 @@ func (p Placement) HomedExtensions(serverID string) []string {
 
 // Credentials returns the credentials that serverID's node agent writes:
 // one trunk credential per peer, sorted by pair ID, and then one phone
-// credential per spare, sorted by MAC address. Every server lists every
-// spare, whether or not it has an address.
-//
-// The desk phones that a server hosts are not listed here. The consumer
-// lists their credentials from Phones.
+// credential for each desk phone line serverID hosts and each spare,
+// sorted by MAC address. Every server lists every spare, whether or not
+// it has an address. This is the one list of derived secrets the node
+// agent needs: it holds every auth section that serverID's rendered
+// endpoints and trunks name, apart from softphones, whose secrets are not
+// derived.
 func (p Placement) Credentials(serverID string) []Credential {
 	var creds []Credential
 	for _, pair := range p.TrunkPairs {
@@ -425,14 +437,20 @@ func (p Placement) Credentials(serverID string) []Credential {
 	if _, ok := p.Servers[serverID]; !ok {
 		return creds
 	}
-	for _, mac := range p.Spares {
-		creds = append(creds, Credential{
+	spares := p.spareSet()
+	var phones []Credential
+	for line, mac := range p.LineMACs {
+		if p.Hosts[line] != serverID && !spares[line] {
+			continue
+		}
+		phones = append(phones, Credential{
 			Kind:    "phone",
 			ID:      mac,
-			Section: authName(mac),
+			Section: authName(line),
 		})
 	}
-	return creds
+	sort.Slice(phones, func(i, j int) bool { return phones[i].ID < phones[j].ID })
+	return append(creds, phones...)
 }
 
 // spareSet returns the set of device names of the spare desk phones. An

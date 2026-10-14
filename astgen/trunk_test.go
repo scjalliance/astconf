@@ -270,9 +270,13 @@ func TestServerTrunksNoAddress(t *testing.T) {
 	if len(cfg.Endpoints) != 0 || len(cfg.OutboundPublishes) != 0 || len(cfg.AsteriskPublications) != 0 {
 		t.Errorf("den renders trunks with no address: %+v", cfg)
 	}
-	// den still writes the spare's phone credential, which every server
-	// lists, but no trunk credential.
-	wantCreds := []astgen.Credential{{Kind: "phone", ID: "000fd3000009", Section: "000fd3000009-auth"}}
+	// den still writes the phone credentials of its own desk phones and of
+	// the spare, which every server lists, but no trunk credential.
+	wantCreds := []astgen.Credential{
+		{Kind: "phone", ID: "000fd3000002", Section: "lobby-auth"},
+		{Kind: "phone", ID: "000fd3000004", Section: "barney-auth"},
+		{Kind: "phone", ID: "000fd3000009", Section: "000fd3000009-auth"},
+	}
 	if creds := p.Credentials("den"); !reflect.DeepEqual(creds, wantCreds) {
 		t.Errorf("Credentials(den) = %v, want %v", creds, wantCreds)
 	}

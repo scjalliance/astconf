@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/scjalliance/astconf/astgen"
+	"github.com/scjalliance/astconf/astorg"
+	"github.com/scjalliance/astconf/dialplan"
 )
 
 // TestServerExtensionsOffice renders the phones' context of an office. Its
@@ -251,5 +253,51 @@ func TestServerHubFallthrough(t *testing.T) {
 	hub := astgen.ServerHubFallthrough(p, "hub")
 	if hub.Context != astgen.HubFallthroughContext || len(hub.Extensions) != 0 {
 		t.Errorf("ServerHubFallthrough(hub) = %+v, want an empty %s section", hub, astgen.HubFallthroughContext)
+	}
+}
+
+// TestServerExtensionsDuplicateOwner checks that two records with the same
+// username and extension render the extension once, for the first claimant
+// as Place decides, in the phones' context and in from-trunk.
+func TestServerExtensionsDuplicateOwner(t *testing.T) {
+	t.Run("same username twice", func(t *testing.T) {
+		data := multiServerData()
+		data.People = append(data.People, astorg.Person{Username: "fred", FullName: "Fred Again", Extension: "100", Location: "Quarry"})
+		p, problems := place(t, data)
+		if len(problems) != 1 || problems[0].Rule != astgen.RuleExtensionDuplicate {
+			t.Errorf("Place() problems = %v, want one %s", problems, astgen.RuleExtensionDuplicate)
+		}
+		checkOwnerOnce(t, data, p, "qry", "100", "Fred Flintstone")
+	})
+	t.Run("first record names a missing server", func(t *testing.T) {
+		data := multiServerData()
+		data.Locations = append(data.Locations, astorg.Location{Name: "Gone", Server: "gone"})
+		first := data.People[0]
+		first.FullName = "Fred Gone"
+		first.Location = "Gone"
+		data.People = append([]astorg.Person{first}, data.People...)
+		p, _ := place(t, data)
+		checkOwnerOnce(t, data, p, "qry", "100", "Fred Flintstone")
+	})
+}
+
+// checkOwnerOnce checks that extension appears once in serverID's phones'
+// context and once in its from-trunk context, each time with comment.
+func checkOwnerOnce(t *testing.T, data *astorg.DataSet, p astgen.Placement, serverID, extension, comment string) {
+	t.Helper()
+	sections := []dialplan.Section{
+		astgen.ServerExtensions(data, p, serverID, "from-internal"),
+		astgen.ServerTrunkExtensions(data, p, serverID, "default"),
+	}
+	for _, section := range sections {
+		var comments []string
+		for _, ext := range section.Extensions {
+			if ext.Number == extension {
+				comments = append(comments, ext.Comment)
+			}
+		}
+		if len(comments) != 1 || comments[0] != comment {
+			t.Errorf("%s [%s] renders %s for %q, want once for %q", serverID, section.Context, extension, comments, comment)
+		}
 	}
 }

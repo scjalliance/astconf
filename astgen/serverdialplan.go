@@ -24,10 +24,28 @@ type extensionOwner struct {
 
 // extensionOwners returns every person and then every role that holds an
 // extension in p, in data set order.
+//
+// It picks the same record Place picked for each extension: the first
+// claimant in data set order whose location does not name a missing server.
+// A later record with the same username and extension is skipped, so the
+// extension renders once.
 func extensionOwners(data *astorg.DataSet, p Placement) []extensionOwner {
+	lookup := data.Lookup()
+	seen := make(map[string]bool)
+	holds := func(username, extension, location string) bool {
+		if username == "" || extension == "" || seen[extension] || p.Owners[extension] != username {
+			return false
+		}
+		if id, _, ok := lookup.LocationServer(location); id != "" && !ok {
+			return false
+		}
+		seen[extension] = true
+		return true
+	}
+
 	var owners []extensionOwner
 	for _, person := range data.People {
-		if p.Owners[person.Extension] != person.Username || person.Username == "" {
+		if !holds(person.Username, person.Extension, person.Location) {
 			continue
 		}
 		owner := extensionOwner{
@@ -41,7 +59,7 @@ func extensionOwners(data *astorg.DataSet, p Placement) []extensionOwner {
 		owners = append(owners, owner)
 	}
 	for _, role := range data.PhoneRoles {
-		if p.Owners[role.Extension] != role.Username || role.Username == "" {
+		if !holds(role.Username, role.Extension, role.Location) {
 			continue
 		}
 		owners = append(owners, extensionOwner{

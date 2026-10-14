@@ -90,7 +90,8 @@ and the device or extension is left out:
 | `server-no-address` | A server has an empty `Address`, so no peer can reach it |
 
 For `extension-duplicate`, the first claimant in data set order (people, then
-roles) keeps the extension and each later one is reported. For
+roles) keeps the extension and is the record the dialplan renders, and each
+later one is reported, even one with the same username. For
 `device-conflict`, such as a person with desk phones at two offices, the first
 phone in data set order decides the host and each later one is reported. A
 softphone whose username is already a desk line name or another softphone's
@@ -352,3 +353,8 @@ the Asterisk source. The sections above already read this way.
     (see Placement). Trunk contacts and publish `server_uri`s join host and
     port with `net.JoinHostPort`, so an IPv6 literal is bracketed and an
     empty address can no longer render `sip::5060`.
+17. **Duplicate owners render once.** Two records with the same username
+    and extension both matched the placement's owner, so the extension
+    rendered twice. The dialplan generators now render only the record
+    Place chose: the first claimant whose location does not name a missing
+    server.

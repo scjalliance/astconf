@@ -87,21 +87,31 @@ func ServerPhones(data *astorg.DataSet, p Placement, serverID string, base dpma.
 	return out
 }
 
+// LockedMailboxPassword is the placeholder password every mailbox from
+// ServerMailboxes carries. With passwordlocation=spooldir, Asterisk falls
+// back to the voicemail.conf password when a mailbox's secret.conf is
+// missing. An empty password would leave that mailbox open, so the fallback
+// is a value no one can enter: "x" is not a DTMF digit, so it cannot be typed
+// on a phone keypad. It is fixed and public, not a secret. A present
+// secret.conf overrides it.
+const LockedMailboxPassword = "x"
+
 // ServerMailboxes generates the voicemail section for serverID. Voicemail
 // lives on the hub alone, so every other server gets an empty section with
 // the same context.
 //
-// The section never holds a PIN: every mailbox has an empty Password. The
-// hub reads PINs from the voicemail spool directory (voicemail.conf sets
-// passwordlocation=spooldir in the hand-written common config) and its node
-// agent writes each mailbox's secret.conf.
+// The section never holds a real PIN: every mailbox carries
+// LockedMailboxPassword. The hub reads PINs from the voicemail spool
+// directory (voicemail.conf sets passwordlocation=spooldir in the
+// hand-written common config) and its node agent writes each mailbox's
+// secret.conf.
 func ServerMailboxes(data *astorg.DataSet, p Placement, serverID string, context string) voicemail.Section {
 	if serverID != p.Hub {
 		return voicemail.Section{Context: context}
 	}
 	section := Mailboxes(data, context)
 	for i := range section.Mailboxes {
-		section.Mailboxes[i].Password = ""
+		section.Mailboxes[i].Password = LockedMailboxPassword
 	}
 	return section
 }

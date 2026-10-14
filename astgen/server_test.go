@@ -117,9 +117,9 @@ func TestServerMailboxes(t *testing.T) {
 	hub := astgen.ServerMailboxes(data, p, "hub", "default")
 	got := render(t, &hub)
 	want := "[default]\n" +
-		"300 => -,Sales,sales@example.com,,attach=yes|saycid=yes|delete=yes\n" +
-		"100 => -,fred,fred@example.com,,attach=yes|saycid=yes|delete=no\n" +
-		"101 => -,barney,,,attach=yes|saycid=yes|delete=no\n"
+		"300 => -x,Sales,sales@example.com,,attach=yes|saycid=yes|delete=yes\n" +
+		"100 => -x,fred,fred@example.com,,attach=yes|saycid=yes|delete=no\n" +
+		"101 => -x,barney,,,attach=yes|saycid=yes|delete=no\n"
 	if got != want {
 		t.Errorf("ServerMailboxes(hub) rendered:\n%s\nwant:\n%s", got, want)
 	}
@@ -127,8 +127,8 @@ func TestServerMailboxes(t *testing.T) {
 		t.Fatalf("ServerMailboxes(hub) has %d mailboxes, want 3", len(hub.Mailboxes))
 	}
 	for _, box := range hub.Mailboxes {
-		if box.Password != "" {
-			t.Errorf("mailbox %s has a password", box.Extension)
+		if box.Password != astgen.LockedMailboxPassword {
+			t.Errorf("mailbox %s has password %q, want the locked placeholder", box.Extension, box.Password)
 		}
 	}
 	if strings.Contains(got, "3000") || strings.Contains(got, "1234") || strings.Contains(got, "4321") {

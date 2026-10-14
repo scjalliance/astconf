@@ -63,8 +63,10 @@ type TrunkPair struct {
 // the one the line's pjsip endpoint names: "<line>-auth", which for an
 // unassigned phone or a spare is "<MAC>-auth". When several phones share
 // a line, one credential covers the line, derived from the MAC address of
-// the first of them in data set order. A consumer must write the section
-// that Section names and never build the name itself.
+// the first of them in data set order that Place hosts or keeps as a
+// spare. A phone that Place reports as a problem, such as a
+// device-conflict, is skipped. A consumer must write the section that
+// Section names and never build the name itself.
 type Credential struct {
 	Kind    string // "trunk" or "phone"
 	ID      string // The trunk pair ID, from which both ends derive the same secret, or a desk phone's MAC address
@@ -88,7 +90,7 @@ type Placement struct {
 	Remote     map[string]map[string][]string // Extension to host server ID to the devices it rings there, sorted, for every host other than its home
 	TrunkPairs []TrunkPair                    // Every unordered pair of servers that both have an address, sorted by ID
 	Spares     []string                       // MAC addresses of the spare desk phones, sorted; every server renders each one
-	LineMACs   map[string]string              // Line name of each hosted desk phone and spare to the MAC address its credential derives from: the first phone on the line in data set order
+	LineMACs   map[string]string              // Line name of each hosted desk phone and spare to the MAC address its credential derives from: the first phone on the line, in data set order, that Place hosts or keeps as a spare
 }
 
 // Place decides which server hosts each device and which server owns each

@@ -78,6 +78,12 @@ it to lay out each node's tree and secret manifest:
   `trunk` credential in the secret manifest, so both ends derive the same
   secret; the sort is the normalization rule the secret-derivation contract
   requires to be fixed.
+- **Spares.** `Spares` holds the MAC address of each spare desk phone,
+  sorted (Amendment 18).
+- **Line credentials.** `LineMACs` maps the line name of each hosted desk
+  phone and each spare to the MAC address its phone credential derives
+  from: the first phone on the line, in data set order, that `Place`
+  hosts or keeps as a spare (Amendment 19).
 
 `Place` returns an error only when the dataset has no hub or more than one,
 since nothing can route without exactly one. Everything else is a `Problem`
@@ -88,7 +94,7 @@ and the device or extension is left out:
 | `location-no-server` | A desk phone at an office that has no server |
 | `server-missing` | A location names a server that is not in the dataset |
 | `extension-duplicate` | Two people or roles claim the same extension |
-| `device-conflict` | Desk phones that share a line name sit on different servers, or a softphone reuses a desk line name or another softphone's username |
+| `device-conflict` | Desk phones that share a line name sit on different servers, a softphone reuses a desk line name or another softphone's username, or a spare's line (its MAC address) collides with a hosted desk phone's line or a softphone |
 | `server-no-address` | A server has an empty `Address`, so no peer can reach it |
 | `owned-no-location` | A desk phone with no location that a person or role owns |
 
@@ -399,6 +405,8 @@ The sections above already read this way.
     The section is the auth section the line's endpoint names, which is
     `<MAC>-auth` for a spare or another unassigned phone. Phones that share
     a line share one section, so they get one credential, derived from
-    the MAC address of the first of them in data set order. A consumer
+    the MAC address of the first of them, in data set order, that `Place`
+    hosts or keeps as a spare; a phone reported as a problem, such as a
+    `device-conflict`, is skipped. A consumer
     must write the section that `Credential.Section` names and never build
     the name itself. Softphone secrets are not derived and are not listed.

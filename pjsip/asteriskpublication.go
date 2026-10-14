@@ -12,8 +12,12 @@ import (
 //
 // DeviceState and MailboxState permit incoming state from that server, and
 // the two filters limit which incoming devices and mailboxes are accepted.
-// What is sent is limited by the filters on the outbound-publish sections
-// that DeviceStatePublish and MailboxStatePublish name.
+//
+// Sending does not depend on this section. An outbound-publish with
+// event=asterisk-devicestate or event=asterisk-mwi publishes on its own, and
+// its @device_state_filter or @mailbox_state_filter limits what it sends.
+// DeviceStatePublish and MailboxStatePublish name the outbound-publish that
+// is used to request a full state refresh from that server.
 //
 // Asterisk-publication sections are written once per peer and are not
 // generated per device, so there are no overlay or merge functions for

@@ -291,3 +291,70 @@ func TestSpareSingleServer(t *testing.T) {
 		}
 	}
 }
+
+// TestSpareUnchangedByRejectedSoftphone checks that a softphone named like
+// a spare's MAC address, which Place rejects as a device conflict, leaves
+// the spare's endpoint, aor, line and phone byte-identical on every server.
+// The owner of the rejected softphone must not merge its caller ID or
+// variables into the spare.
+func TestSpareUnchangedByRejectedSoftphone(t *testing.T) {
+	clean := multiServerData()
+	pClean, _ := place(t, clean)
+
+	clash := multiServerData()
+	clash.Softphones = append(clash.Softphones, astorg.Softphone{Username: spareMAC, Location: "Remote", Secret: "clash-secret"})
+	clash.People[2].Softphones = append(clash.People[2].Softphones, spareMAC) // wilma
+	pClash, problems := place(t, clash)
+	if len(problems) != 1 || problems[0].Rule != astgen.RuleDeviceConflict {
+		t.Fatalf("Place() problems = %v, want one device-conflict", problems)
+	}
+
+	spareSections := func(t *testing.T, data *astorg.DataSet, p astgen.Placement, serverID string) map[string]string {
+		t.Helper()
+		out := make(map[string]string)
+		for _, e := range astgen.ServerEndpoints(data, p, serverID, pjsip.Endpoint{Context: "from-internal"}, "default") {
+			if e.Name == spareMAC {
+				out["endpoint"] += render(t, &e)
+			}
+		}
+		for _, a := range astgen.ServerAORs(data, p, serverID, pjsip.AOR{}) {
+			if a.Name == spareMAC+"-aor" {
+				out["aor"] += render(t, &a)
+			}
+		}
+		for _, l := range astgen.ServerLines(data, p, serverID) {
+			if l.Name == spareMAC {
+				out["line"] += render(t, &l)
+			}
+		}
+		for _, ph := range astgen.ServerPhones(data, p, serverID, dpma.Phone{}, "https://contacts.example.com/") {
+			if ph.MAC == spareMAC {
+				out["phone"] += render(t, &ph)
+			}
+		}
+		return out
+	}
+
+	for _, serverID := range pClean.ServerIDs() {
+		t.Run(serverID, func(t *testing.T) {
+			want := spareSections(t, clean, pClean, serverID)
+			got := spareSections(t, clash, pClash, serverID)
+			for _, kind := range []string{"endpoint", "aor", "line", "phone"} {
+				if want[kind] == "" {
+					t.Errorf("the clean data set renders no spare %s", kind)
+				}
+				if got[kind] != want[kind] {
+					t.Errorf("spare %s =\n%s\nwant:\n%s", kind, got[kind], want[kind])
+				}
+			}
+		})
+	}
+
+	// Rendering filters a copy, never the caller's data set.
+	if n := len(clash.Softphones); n != 4 {
+		t.Errorf("the data set now has %d softphones, want 4", n)
+	}
+	if got := clash.People[2].Softphones; len(got) != 2 || got[1] != spareMAC {
+		t.Errorf("wilma's softphones are now %v, want [wilma.soft %s]", got, spareMAC)
+	}
+}

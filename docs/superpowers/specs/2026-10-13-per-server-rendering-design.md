@@ -4,7 +4,7 @@ Status: design, 2026-10-13. Not yet reviewed by the astconf maintainer.
 
 ## Why
 
-SCJ's phone system is moving from one Asterisk server to one server per office
+The phone system this serves is moving from one Asterisk server to one server per office
 plus a hub in GCP, all on one tailnet. `astorg` gained a `Server` model in PR #9
 (`Server{ID, Name, Hub, Address}`, `Location.Server`, `Lookup.LocationServer`,
 `Lookup.Hub`). Nothing in `astgen` reads it yet: every generator renders the
@@ -16,12 +16,12 @@ reaches it over the tailnet trunk", and it must keep the behavior people have
 today: one extension rings all of a person's devices, busy lamps light, and
 message-waiting lamps light.
 
-The consumer is `scj-phone-gen`, which renders one tree per server
+The consumer is the consuming generator, which renders one tree per server
 (`nodes/<server-id>/`) and commits it to the config repo every server pulls.
 
 ## Decisions
 
-Made 2026-10-13 with Emmaly:
+Made 2026-10-13 by the project owner:
 
 1. **Forked ringing.** An extension rings every device its owner has, on
    whatever server each device registers to. The first device to answer wins
@@ -42,7 +42,7 @@ Made 2026-10-13 with Emmaly:
    override that `PhoneExtensions` renders is not rendered by the per-server
    generators. The existing generators keep theirs.
 
-Taken from the phone system's decision log (`_phone/docs/decisions.md`):
+Taken from the system's decision log:
 
 - Every softphone registers to the hub. A desk phone registers to its office's
   server.
@@ -59,7 +59,7 @@ Taken from the phone system's decision log (`_phone/docs/decisions.md`):
 func Place(data *astorg.DataSet) (Placement, []Problem, error)
 ```
 
-`Placement` is plain data keyed by server ID, so `scj-phone-gen` can also use
+`Placement` is plain data keyed by server ID, so the consuming generator can also use
 it to lay out each node's tree and secret manifest:
 
 - **Device host.** A desk phone is hosted by its location's server
@@ -91,7 +91,7 @@ roles) keeps the extension and each later one is reported. For
 phone in data set order decides the host and each later one is reported.
 
 `Problem` carries a rule name, the record kind and id, and a detail string,
-with no secret in any field. `scj-phone-gen` decides whether problems block a
+with no secret in any field. The consuming generator decides whether problems block a
 commit.
 
 With a single server that is also the hub, every device and extension is local
@@ -105,7 +105,7 @@ For each peer, a server renders:
   `aors=trunk-<peer>`, `auth` and `outbound_auth` = `auth-trunk-<peer>`,
   `direct_media=no`.
 - `aor` `trunk-<peer>`: `contact=sip:<peer address>:5060;transport=tcp`, where
-  the address is `Server.Address` (the tailnet name, `<id>-phone`).
+  the address is `Server.Address`, a tailnet hostname.
 - `identify` `trunk-<peer>`: `endpoint=trunk-<peer>`, `match=<peer address>`.
 - One shared `transport` `transport-tcp`, `protocol=tcp`, bound to an address
   the caller passes in (the server's tailnet IP, which `Server.Address` does
@@ -115,8 +115,7 @@ For each peer, a server renders:
 **Secrets.** astgen never renders a password. Each trunk endpoint names its
 auth section, and `Placement` lists the credential as `{kind: "trunk", id:
 <pair id>, section: "auth-trunk-<peer>"}`. The node agent writes that section
-into its local secrets file, as it does for phone auth (`_phone` contracts,
-section 4).
+into its local secrets file, as it does for phone auth (the system's contracts).
 
 **State publication.** For each peer:
 
@@ -157,7 +156,10 @@ keep `SIP/...` for the current server.
 
 **Home extension.** For each extension homed on this server:
 
-1. `Macro(pre-answer)`, unchanged and hand-written.
+1. `Gosub(pre-answer,s,1(${EXTEN}))`. The subroutine is hand-written and
+   must end in `Return`. The target is Asterisk 22, and Asterisk 21 removed
+   `app_macro`, so every per-server subroutine call uses `Gosub`; the
+   existing generators keep `Macro`.
 2. Build one dial string: each local device is added only when
    `DEVICE_STATE(PJSIP/<device>)` is `NOT_INUSE`, and each remote device is
    added as `PJSIP/dev-<device>@trunk-<host>`.
@@ -169,12 +171,13 @@ for each device this server hosts: ring it when idle, otherwise `Busy()`. The
 caller's ring loses that one leg and keeps the rest.
 
 **Voicemail.** On the hub, `vm-<mailbox>` in `from-trunk` runs `VoiceMail`.
-The `no-answer` macro stays hand-written; astgen supplies the target as the
-macro's second argument: `Macro(no-answer,${EXTEN},<target>)`. On an office
-the target is `PJSIP/vm-<mailbox>@trunk-<hub>`; on the hub it is
-`Local/vm-<mailbox>@from-trunk`, so the macro can dial `${ARG2}` everywhere.
-A person's mailbox is their extension when they have a voicemail code; with
-none, the macro gets no target. A role's mailbox is its `MailboxNumber`; a
+The `no-answer` subroutine stays hand-written and must end in `Return`;
+astgen supplies the target as its second argument:
+`Gosub(no-answer,s,1(${EXTEN},<target>))`, read as `${ARG1}` and `${ARG2}`.
+On an office the target is `PJSIP/vm-<mailbox>@trunk-<hub>`; on the hub it is
+`Local/vm-<mailbox>@from-trunk`, so the subroutine can dial `${ARG2}`
+everywhere. A person's mailbox is their extension when they have a voicemail
+code; with none, the subroutine gets no target. A role's mailbox is its `MailboxNumber`; a
 role with none ends in `Congestion()`, as roles do today.
 
 **Routing table.** Every server renders, in the phones' context, each
@@ -251,8 +254,8 @@ the same input renders the same bytes, with maps iterated in sorted order.
 
 - Twilio, inbound DIDs, outbound PSTN and E911 caller ID: hand-written on the
   hub.
-- Secrets, the node agent and reload policy: `scj-phone`.
-- The tree layout, manifest and commit: `scj-phone-gen`.
+- Secrets, the node agent and reload policy: the node agent.
+- The tree layout, manifest and commit: the consuming generator.
 - The refactor `astgen/doc.go` asks for (generators that do not take whole
   datasets). This design adds new functions beside the old ones and does not
   block that refactor.
@@ -263,10 +266,10 @@ Two pull requests to `scjalliance/astconf`, both for the maintainer's review:
 
 1. The four new `pjsip` section types.
 2. `Place` and the per-server generators, with the golden fixture. The
-   `dialplan` package gains what they need: `Busy`, `VoiceMail`, `Return`,
-   `PJSIP_HEADER`, `CHANNEL`, `Cat`, `Substring`, `DialExpr`, and a predial
-   target on `Page` (its `b()` option). A `Page` without one renders as
-   before.
+   `dialplan` package gains what they need: `Busy`, `VoiceMail`, `Subroutine`
+   (Gosub with arguments), `Return`, `PJSIP_HEADER`, `CHANNEL`, `Cat`,
+   `Substring`, `DialExpr`, and a predial target on `Page` (its `b()`
+   option). A `Page` without one renders as before.
 
 ## Amendments (2026-10-13)
 
@@ -282,9 +285,9 @@ the Asterisk source. The sections above already read this way.
    offices. `server_uri` became `sip:trunk-<self>@<peer address>:5060;transport=tcp`,
    because `res_pjsip_pubsub` finds the inbound-publication by the request
    URI's user part.
-2. **Call waiting removed** in the per-server path (Decision 6, Emmaly,
-   2026-10-13).
-3. **Voicemail target** is the no-answer macro's second argument, with
+2. **Call waiting removed** in the per-server path (Decision 6, project
+   owner, 2026-10-13).
+3. **Voicemail target** is the no-answer subroutine's second argument, with
    `Local/vm-<mailbox>@from-trunk` on the hub.
 4. **Equivalence test scope** is spelled out under Testing.
 5. **Duplicates.** First claimant wins, and a fourth problem rule,
@@ -293,3 +296,9 @@ the Asterisk source. The sections above already read this way.
 7. **Paging on PJSIP.** Relay legs go through `Local/page-relay-...` so a busy
    trunk is never skipped, and Alert-Info comes from a rendered predial
    subroutine instead of `SIPAddHeader`.
+8. **Gosub instead of Macro.** Asterisk 21 removed `app_macro` and the target
+   is Asterisk 22, so the per-server dialplan calls the hand-written
+   `pre-answer` and `no-answer` subroutines with
+   `Gosub(<name>,s,1(${EXTEN}[,<target>]))`. Each must end in `Return`. The
+   existing generators keep `Macro`. The `dialplan` package gains a
+   `Subroutine` application for this.

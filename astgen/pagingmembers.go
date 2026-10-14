@@ -26,7 +26,11 @@ func pagingMembers(data *astorg.DataSet) map[string][]string {
 	// Keep track of which devices have been assigned
 	assigned := make(map[string]bool)
 
-	assignOwner := func(groups, tags, phones, softphones []string) {
+	assignOwner := func(ownGroups, tags, phones, softphones []string) {
+		// Copy before appending: ownGroups is the data set's own slice, and
+		// appending into its spare capacity would write to shared memory
+		// while other servers render from the same data set.
+		groups := append([]string(nil), ownGroups...)
 		for _, t := range tags {
 			if tag, ok := lookup.TagsByName[t]; ok {
 				groups = append(groups, tag.PagingGroups...)

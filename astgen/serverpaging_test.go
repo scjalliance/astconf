@@ -2,9 +2,13 @@ package astgen_test
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/scjalliance/astconf/astgen"
+	"github.com/scjalliance/astconf/astorg"
+	"github.com/scjalliance/astconf/dpma"
+	"github.com/scjalliance/astconf/pjsip"
 )
 
 // TestServerPagingAllMembersRemote checks a paging group with no members on
@@ -98,5 +102,53 @@ func TestPageAlertSection(t *testing.T) {
 		"same => n,Return()\n"
 	if got != want {
 		t.Errorf("PageAlertSection() rendered:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// TestServerPagingConcurrent renders two servers at once from one data set,
+// as a consumer may. Fred's paging groups have spare capacity and his tag
+// adds a group, so finding membership must not append into the data set's
+// own slice. Run under "go test -race" to catch a data race; the check on
+// the spare capacity catches the write without it.
+func TestServerPagingConcurrent(t *testing.T) {
+	data := multiServerData()
+	data.Tags = astorg.TagList{{Name: "ops", PagingGroups: []string{"501"}}}
+	data.PagingGroups = append(data.PagingGroups, astorg.PagingGroup{Name: "Ops", Extension: "501"})
+	groups := make([]string, 1, 8)
+	groups[0] = "500"
+	data.People[0].PagingGroups = groups
+	data.People[0].Tags = []string{"ops"}
+	p, _ := place(t, data)
+
+	var wg sync.WaitGroup
+	for _, serverID := range []string{"qry", "den", "hub"} {
+		for run := 0; run < 20; run++ {
+			wg.Add(1)
+			go func(serverID string) {
+				defer wg.Done()
+				astgen.ServerEndpoints(data, p, serverID, pjsip.Endpoint{}, "default")
+				astgen.ServerAORs(data, p, serverID, pjsip.AOR{})
+				astgen.ServerTrunks(p, serverID, pjsip.Endpoint{}, "100.64.0.9")
+				astgen.ServerExtensions(data, p, serverID, "from-internal")
+				astgen.ServerHubFallthrough(p, serverID)
+				astgen.ServerPagingExtensions(data, p, serverID, "paging")
+				astgen.ServerPageRelayExtensions(data, p, serverID)
+				astgen.ServerTrunkExtensions(data, p, serverID, "default")
+				astgen.ServerPhones(data, p, serverID, dpma.Phone{}, "https://contacts.example.com/")
+				astgen.ServerLines(data, p, serverID)
+				astgen.ServerMailboxes(data, p, serverID, "default")
+			}(serverID)
+		}
+	}
+	wg.Wait()
+
+	if spare := groups[1:cap(groups)]; strings.Join(spare, "") != "" {
+		t.Errorf("rendering wrote %q into the spare capacity of a person's paging groups", spare)
+	}
+
+	// Fred's desk phone joins the tag's group on his server.
+	paging := astgen.ServerPagingExtensions(data, p, "qry", "paging")
+	if text := render(t, &paging); !strings.Contains(text, "exten => 501,") || !strings.Contains(text, "Page(PJSIP/fred") {
+		t.Errorf("qry paging has no Ops group with fred:\n%s", text)
 	}
 }

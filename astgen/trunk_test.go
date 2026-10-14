@@ -1,6 +1,8 @@
 package astgen_test
 
 import (
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/scjalliance/astconf/astgen"
@@ -223,5 +225,74 @@ func TestServerTrunksBase(t *testing.T) {
 	}
 	if len(base.AORs) != 1 || base.AORs[0] != "aor-base" {
 		t.Errorf("ServerTrunks changed the base aors to %v", base.AORs)
+	}
+}
+
+// TestServerTrunksNoAddress checks a server with an empty address. Place
+// reports it, and it joins no trunk pair: no peer renders a trunk to it,
+// it renders none, and no credential names it.
+func TestServerTrunksNoAddress(t *testing.T) {
+	data := multiServerData()
+	data.Servers[1].Address = "" // den
+	p, problems := place(t, data)
+
+	want := []astgen.Problem{{
+		Rule:   astgen.RuleServerNoAddress,
+		Kind:   "server",
+		ID:     "den",
+		Detail: "the server has no address, so it gets no trunk to any other server",
+	}}
+	if !reflect.DeepEqual(problems, want) {
+		t.Errorf("Place() problems =\n%v\nwant:\n%v", problems, want)
+	}
+	if want := []astgen.TrunkPair{{ID: "hub~qry", A: "hub", B: "qry"}}; !reflect.DeepEqual(p.TrunkPairs, want) {
+		t.Errorf("TrunkPairs = %v, want %v", p.TrunkPairs, want)
+	}
+	if p.Homes["101"] != "den" || p.Hosts["barney"] != "den" {
+		t.Errorf("den lost its own extension or device: Homes[101] = %q, Hosts[barney] = %q", p.Homes["101"], p.Hosts["barney"])
+	}
+
+	for _, serverID := range []string{"qry", "hub"} {
+		cfg := astgen.ServerTrunks(p, serverID, pjsip.Endpoint{}, "100.64.0.9")
+		if text := renderTrunks(t, cfg); strings.Contains(text, "trunk-den") || strings.Contains(text, "sip::") {
+			t.Errorf("%s renders a trunk to den:\n%s", serverID, text)
+		}
+		if len(cfg.Endpoints) != 1 {
+			t.Errorf("%s has %d trunk endpoints, want 1", serverID, len(cfg.Endpoints))
+		}
+		for _, cred := range p.Credentials(serverID) {
+			if strings.Contains(cred.ID, "den") {
+				t.Errorf("%s has a credential for den: %v", serverID, cred)
+			}
+		}
+	}
+	cfg := astgen.ServerTrunks(p, "den", pjsip.Endpoint{}, "100.64.0.2")
+	if len(cfg.Endpoints) != 0 || len(cfg.OutboundPublishes) != 0 || len(cfg.AsteriskPublications) != 0 {
+		t.Errorf("den renders trunks with no address: %+v", cfg)
+	}
+	if creds := p.Credentials("den"); len(creds) != 0 {
+		t.Errorf("Credentials(den) = %v, want none", creds)
+	}
+}
+
+// TestServerTrunksIPv6Address checks that a peer address that is an IPv6
+// literal is bracketed in the aor contact and the publish server_uri.
+func TestServerTrunksIPv6Address(t *testing.T) {
+	data := multiServerData()
+	data.Servers[1].Address = "fd7a:115c:a1e0::2" // den
+	p, _ := place(t, data)
+	cfg := astgen.ServerTrunks(p, "qry", pjsip.Endpoint{}, "fd7a:115c:a1e0::3")
+
+	if got, want := cfg.Transport.Bind, "[fd7a:115c:a1e0::3]:5060"; got != want {
+		t.Errorf("transport bind = %q, want %q", got, want)
+	}
+	if got, want := cfg.AORs[0].Contacts, []string{"sip:[fd7a:115c:a1e0::2]:5060;transport=tcp"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("aor %s contact = %v, want %v", cfg.AORs[0].Name, got, want)
+	}
+	if got, want := cfg.OutboundPublishes[0].ServerURI, "sip:trunk-qry@[fd7a:115c:a1e0::2]:5060;transport=tcp"; got != want {
+		t.Errorf("outbound-publish %s server_uri = %q, want %q", cfg.OutboundPublishes[0].Name, got, want)
+	}
+	if got, want := cfg.Identifies[0].Match, []string{"fd7a:115c:a1e0::2"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("identify %s match = %v, want %v", cfg.Identifies[0].Name, got, want)
 	}
 }

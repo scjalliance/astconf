@@ -47,7 +47,7 @@ func ServerTrunks(p Placement, serverID string, base pjsip.Endpoint, bindAddr st
 	for _, peer := range p.Peers(serverID) {
 		name := trunkName(peer.ID)
 		auth := trunkAuthName(peer.ID)
-		peerURI := "sip:" + peer.Address + ":" + trunkPort + ";transport=tcp"
+		peerURI := "sip:" + net.JoinHostPort(peer.Address, trunkPort) + ";transport=tcp"
 
 		// Overlay rather than merge, so the trunk's aors replace any in the
 		// base instead of joining them.
@@ -72,7 +72,7 @@ func ServerTrunks(p Placement, serverID string, base pjsip.Endpoint, bindAddr st
 
 		// The user part of the server URI names the inbound-publication
 		// on the peer, which is the peer's trunk to this server.
-		publishURI := "sip:" + trunkName(serverID) + "@" + peer.Address + ":" + trunkPort + ";transport=tcp"
+		publishURI := "sip:" + trunkName(serverID) + "@" + net.JoinHostPort(peer.Address, trunkPort) + ";transport=tcp"
 		cfg.OutboundPublishes = append(cfg.OutboundPublishes, pjsip.OutboundPublish{
 			Name:              publishName(peer.ID),
 			ServerURI:         publishURI,

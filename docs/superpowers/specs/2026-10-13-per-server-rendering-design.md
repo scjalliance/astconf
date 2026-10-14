@@ -70,8 +70,9 @@ it to lay out each node's tree and secret manifest:
   server, or on the hub when that location has no server.
 - **Remote devices.** For each extension, the devices hosted on a server other
   than its home, grouped by host.
-- **Trunk pairs.** Every unordered pair of servers. The pair id is the two
-  server IDs, sorted, joined by `~` (`den~lcy`). This is the `id` of the
+- **Trunk pairs.** Every unordered pair of servers that both have an
+  address. The pair id is the two server IDs, sorted, joined by `~`
+  (`den~lcy`). This is the `id` of the
   `trunk` credential in the secret manifest, so both ends derive the same
   secret; the sort is the normalization rule the secret-derivation contract
   requires to be fixed.
@@ -86,6 +87,7 @@ and the device or extension is left out:
 | `server-missing` | A location names a server that is not in the dataset |
 | `extension-duplicate` | Two people or roles claim the same extension |
 | `device-conflict` | Desk phones that share a line name sit on different servers, or a softphone reuses a desk line name or another softphone's username |
+| `server-no-address` | A server has an empty `Address`, so no peer can reach it |
 
 For `extension-duplicate`, the first claimant in data set order (people, then
 roles) keeps the extension and each later one is reported. For
@@ -93,6 +95,14 @@ roles) keeps the extension and each later one is reported. For
 phone in data set order decides the host and each later one is reported. A
 softphone whose username is already a desk line name or another softphone's
 is reported the same way, with kind `softphone`, and left out.
+
+A server with an empty `Address` is reported as `server-no-address` (kind
+`server`) and joins no trunk pair. It keeps its devices and extensions, so its
+own output renders, but no peer renders a trunk to it, it renders none, and
+`Credentials` names no pair with it. Calls that other servers route to it fail
+until it has an address, so the consuming generator should treat this problem
+as blocking. Leaving the server out of the placement instead would also drop
+every device and extension at its locations, and could not apply to the hub.
 
 `Problem` carries a rule name, the record kind and id, and a detail string,
 with no secret in any field. The consuming generator decides whether problems block a
@@ -111,7 +121,8 @@ For each peer, a server renders:
   base carries settings such as the codec list (`disallow`, `allow`); the
   trunk's own settings win over it.
 - `aor` `trunk-<peer>`: `contact=sip:<peer address>:5060;transport=tcp`, where
-  the address is `Server.Address`, a tailnet hostname.
+  the address is `Server.Address`, a tailnet hostname. The host and port are
+  joined as `net.JoinHostPort` joins them, so an IPv6 literal is bracketed.
 - `identify` `trunk-<peer>`: `endpoint=trunk-<peer>`, `match=<peer address>`.
 - One shared `transport` `transport-tcp`, `protocol=tcp`, bound to an address
   the caller passes in (the server's tailnet IP, which `Server.Address` does
@@ -336,3 +347,8 @@ the Asterisk source. The sections above already read this way.
 15. **Softphone conflicts.** A softphone whose username is already a desk
     line name or another softphone's is reported as `device-conflict` with
     kind `softphone`. It was dropped with no problem before.
+16. **Servers with no address.** Place reports `server-no-address` for a
+    server with an empty `Address` and leaves it out of every trunk pair
+    (see Placement). Trunk contacts and publish `server_uri`s join host and
+    port with `net.JoinHostPort`, so an IPv6 literal is bracketed and an
+    empty address can no longer render `sip::5060`.

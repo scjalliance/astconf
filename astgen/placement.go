@@ -20,14 +20,16 @@ const (
 	RuleServerMissing      = "server-missing"      // A location names a server that is not in the data set
 	RuleExtensionDuplicate = "extension-duplicate" // Two people or roles claim the same extension
 	RuleDeviceConflict     = "device-conflict"     // Desk phones that share a line name sit on different servers, or a softphone reuses a device name
+	RuleServerNoAddress    = "server-no-address"   // A server has an empty Address, so no peer can reach it
 )
 
-// Problem describes a record that Place left out of the placement. No
+// Problem describes a record that Place left out of the placement, or a
+// server with no address that Place left out of every trunk pair. No
 // field ever carries a secret.
 type Problem struct {
 	Rule   string // One of the Rule constants
-	Kind   string // "phone", "softphone", "person" or "role"
-	ID     string // The MAC address, or the softphone's, person's or role's username
+	Kind   string // "phone", "softphone", "person", "role" or "server"
+	ID     string // The MAC address, the softphone's, person's or role's username, or the server ID
 	Detail string
 }
 
@@ -66,7 +68,7 @@ type Placement struct {
 	Owners     map[string]string              // Extension to the username of the person or role that holds it
 	Devices    map[string][]string            // Extension to the names of the devices it rings, sorted
 	Remote     map[string]map[string][]string // Extension to host server ID to the devices it rings there, sorted, for every host other than its home
-	TrunkPairs []TrunkPair                    // Every unordered pair of servers, sorted by ID
+	TrunkPairs []TrunkPair                    // Every unordered pair of servers that both have an address, sorted by ID
 }
 
 // Place decides which server hosts each device and which server owns each
@@ -79,6 +81,13 @@ type Placement struct {
 // Place returns an error only when the data set does not have exactly one
 // hub. Any other record that cannot be placed is reported as a Problem and
 // left out of the placement.
+//
+// A server with no address is reported as a Problem and joins no trunk
+// pair, since no peer could reach it. It still hosts its devices and homes
+// its extensions, so its own output renders, but no server renders a trunk
+// to it and it renders none, and calls that other servers route to it fail
+// until it has an address. A consumer should treat that problem as one that
+// blocks a commit.
 func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 	lookup := data.Lookup()
 
@@ -235,8 +244,20 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 		}
 	}
 
-	// Step 4: Pair every two servers
-	ids := p.ServerIDs()
+	// Step 4: Pair every two servers that have an address
+	var ids []string
+	for _, id := range p.ServerIDs() {
+		if p.Servers[id].Address == "" {
+			problems = append(problems, Problem{
+				Rule:   RuleServerNoAddress,
+				Kind:   "server",
+				ID:     id,
+				Detail: "the server has no address, so it gets no trunk to any other server",
+			})
+			continue
+		}
+		ids = append(ids, id)
+	}
 	for i := range ids {
 		for j := i + 1; j < len(ids); j++ {
 			p.TrunkPairs = append(p.TrunkPairs, TrunkPair{
@@ -260,14 +281,20 @@ func (p Placement) ServerIDs() []string {
 	return ids
 }
 
-// Peers returns every server other than serverID, sorted by ID.
+// Peers returns every server that shares a trunk pair with serverID,
+// sorted by ID. That is every other server, unless serverID or the other
+// server has no address.
 func (p Placement) Peers(serverID string) []astorg.Server {
 	var peers []astorg.Server
-	for _, id := range p.ServerIDs() {
-		if id != serverID {
-			peers = append(peers, p.Servers[id])
+	for _, pair := range p.TrunkPairs {
+		switch serverID {
+		case pair.A:
+			peers = append(peers, p.Servers[pair.B])
+		case pair.B:
+			peers = append(peers, p.Servers[pair.A])
 		}
 	}
+	sort.Slice(peers, func(i, j int) bool { return peers[i].ID < peers[j].ID })
 	return peers
 }
 

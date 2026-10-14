@@ -137,9 +137,9 @@ For each peer, a server renders:
 endpoint names its auth section, and `Placement` lists the credential as
 `{kind: "trunk", id: <pair id>, section: "auth-trunk-<peer>"}`. The node agent
 writes that section into its local secrets file, as it does for phone auth
-(the system's contracts). The endpoint uses the one section as both `auth`
-and `outbound_auth`, so both ends of a pair must write the same username and
-password; the expected username is the pair id.
+(the system's contracts, and Amendment 19). The endpoint uses the one
+section as both `auth` and `outbound_auth`, so both ends of a pair must
+write the same username and password; the expected username is the pair id.
 
 **State publication.** For each peer:
 
@@ -379,8 +379,8 @@ The sections above already read this way.
     unassigned phone: each is named by its MAC address, with no extension
     and no user, so DPMA can provision it anywhere. `Credentials` lists
     `{kind: "phone", id: <MAC>, section: "<MAC>-auth"}` for every spare on
-    every server, after the trunk credentials, so each node agent writes
-    its auth section. A spare gets no extension, hint, route, `dev-`
+    every server, so each node agent writes its auth section (see
+    Amendment 19). A spare gets no extension, hint, route, `dev-`
     entry or paging membership, and is left out of every device state
     filter, both the outbound-publish `@device_state_filter` and the
     `asterisk-publication` `device_state_filter`, so no two servers
@@ -391,3 +391,14 @@ The sections above already read this way.
     says which server should ring it for its owner's extension. A
     softphone or located desk phone whose device name is a spare's line
     is reported as `device-conflict`.
+19. **Phone credentials** (2026-10-14). `Credentials` is
+    the one list of derived secrets a node agent needs. For a server it
+    lists the trunk credentials, sorted by pair id, and then a phone
+    credential for each desk phone line the server hosts and each spare,
+    sorted by MAC address: `{kind: "phone", id: <MAC>, section: "<line>-auth"}`.
+    The section is the auth section the line's endpoint names, which is
+    `<MAC>-auth` for a spare or another unassigned phone. Phones that share
+    a line share one section, so they get one credential, derived from
+    the MAC address of the first of them in data set order. A consumer
+    must write the section that `Credential.Section` names and never build
+    the name itself. Softphone secrets are not derived and are not listed.

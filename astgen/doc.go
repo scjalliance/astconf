@@ -30,6 +30,15 @@
 // instead of its PIN. A value in a base the caller passes in, such as a PIN
 // in the dpma.Phone base given to ServerPhones, passes through as given.
 //
+// Placement.Credentials is the one list of derived secrets a server's node
+// agent needs: a trunk credential per peer, and a phone credential, with a
+// MAC address as its ID, for each desk phone line the server hosts and
+// each spare. Softphone secrets are not derived and are not listed. A
+// phone credential's section is the auth section its line's endpoint
+// names, "<line>-auth", which is "<MAC>-auth" for a spare or another
+// unassigned phone. A consumer must write the section that
+// Credential.Section names and never build the name itself.
+//
 // # What the consumer must provide
 //
 // The per-server output relies on pieces that this package does not render.

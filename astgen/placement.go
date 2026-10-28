@@ -413,8 +413,8 @@ func (p Placement) HomedExtensions(serverID string) []string {
 // Credentials returns the credentials that serverID's node agent writes:
 // one trunk credential per peer, sorted by pair ID, and then one phone
 // credential for each desk phone line serverID hosts and each spare,
-// sorted by MAC address. Every server lists every spare, whether or not
-// it has an address. This is the one list of derived secrets the node
+// sorted by MAC address. Every office server lists every spare, whether
+// or not it has an address; the hub lists none when there are offices. This is the one list of derived secrets the node
 // agent needs: it holds every auth section that serverID's rendered
 // endpoints and trunks name, apart from softphones, whose secrets are not
 // derived.
@@ -439,7 +439,7 @@ func (p Placement) Credentials(serverID string) []Credential {
 	if _, ok := p.Servers[serverID]; !ok {
 		return creds
 	}
-	spares := p.spareSet()
+	spares := p.sparesOn(serverID)
 	var phones []Credential
 	for line, mac := range p.LineMACs {
 		if p.Hosts[line] != serverID && !spares[line] {
@@ -453,6 +453,18 @@ func (p Placement) Credentials(serverID string) []Credential {
 	}
 	sort.Slice(phones, func(i, j int) bool { return phones[i].ID < phones[j].ID })
 	return append(creds, phones...)
+}
+
+// sparesOn returns the spares serverID renders: every spare on an office
+// server, and none on a server the placement does not know. The hub gets
+// none when there are offices: it need not run DPMA, and a spare is
+// provisioned where it is plugged in, at an office. In a deployment of one
+// server, the hub is the office and renders every spare.
+func (p Placement) sparesOn(serverID string) map[string]bool {
+	if _, ok := p.Servers[serverID]; !ok || (serverID == p.Hub && len(p.Servers) > 1) {
+		return map[string]bool{}
+	}
+	return p.spareSet()
 }
 
 // spareSet returns the set of device names of the spare desk phones. An

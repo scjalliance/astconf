@@ -9,7 +9,7 @@ import (
 )
 
 // hostedSet returns the set of device names that serverID renders: the
-// devices it hosts and, on every server in the placement, every spare.
+// devices it hosts and, on an office server, every spare.
 func hostedSet(p Placement, serverID string) map[string]bool {
 	set := make(map[string]bool)
 	for name, host := range p.Hosts {
@@ -17,10 +17,8 @@ func hostedSet(p Placement, serverID string) map[string]bool {
 			set[name] = true
 		}
 	}
-	if _, ok := p.Servers[serverID]; ok {
-		for name := range p.spareSet() {
-			set[name] = true
-		}
+	for name := range p.sparesOn(serverID) {
+		set[name] = true
 	}
 	return set
 }
@@ -103,9 +101,9 @@ func placedData(data *astorg.DataSet, p Placement) *astorg.DataSet {
 }
 
 // ServerEndpoints generates PJSIP endpoint entries for the devices that
-// serverID hosts and for every spare. Each entry is the one Endpoints
-// generates for the same device, in the same order, except that the VMCODE
-// variable is removed.
+// serverID hosts and, on an office server, for every spare. Each entry is
+// the one Endpoints generates for the same device, in the same order,
+// except that the VMCODE variable is removed.
 // Per-server output is committed to a config repo that every server pulls,
 // so it never holds a voicemail PIN.
 func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pjsip.Endpoint, context string) []pjsip.Endpoint {
@@ -128,8 +126,8 @@ func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pj
 }
 
 // ServerAORs generates PJSIP aor entries for the devices that serverID
-// hosts and for every spare. Each entry is the one AORs generates for the
-// same device, in the same order.
+// hosts and, on an office server, for every spare. Each entry is the one
+// AORs generates for the same device, in the same order.
 func ServerAORs(data *astorg.DataSet, p Placement, serverID string, base pjsip.AOR) []pjsip.AOR {
 	hosted := make(map[string]bool)
 	for name := range hostedSet(p, serverID) {
@@ -145,8 +143,8 @@ func ServerAORs(data *astorg.DataSet, p Placement, serverID string, base pjsip.A
 }
 
 // ServerLines generates DPMA line entries for the desk phones that serverID
-// hosts and for every spare. Each entry is the one Lines generates for the
-// same line, in the same order.
+// hosts and, on an office server, for every spare. Each entry is the one
+// Lines generates for the same line, in the same order.
 func ServerLines(data *astorg.DataSet, p Placement, serverID string) []dpma.Line {
 	hosted := hostedSet(p, serverID)
 	var out []dpma.Line
@@ -159,13 +157,10 @@ func ServerLines(data *astorg.DataSet, p Placement, serverID string) []dpma.Line
 }
 
 // ServerPhones generates DPMA phone entries for the desk phones that
-// serverID hosts and for every spare. Each entry is the one Phones
-// generates for the same phone, in the same order.
+// serverID hosts and, on an office server, for every spare. Each entry is
+// the one Phones generates for the same phone, in the same order.
 func ServerPhones(data *astorg.DataSet, p Placement, serverID string, base dpma.Phone, contactsURL string) []dpma.Phone {
-	var spares map[string]bool
-	if _, ok := p.Servers[serverID]; ok {
-		spares = p.spareSet()
-	}
+	spares := p.sparesOn(serverID)
 	var out []dpma.Phone
 	for _, phone := range Phones(placedData(data, p), base, contactsURL) {
 		if host, ok := p.Phones[phone.MAC]; (ok && host == serverID) || spares[phone.MAC] {

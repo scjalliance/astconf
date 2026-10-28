@@ -115,10 +115,11 @@ func TestPlaceSpareConflicts(t *testing.T) {
 	})
 }
 
-// TestSpareRenderedOnEveryServer checks that every server renders the
-// spare's DPMA phone and line and its pjsip endpoint and aor, each exactly
-// as the whole-dataset generators render the unassigned phone.
-func TestSpareRenderedOnEveryServer(t *testing.T) {
+// TestSpareRenderedOnEveryOfficeServer checks that every office server
+// renders the spare's DPMA phone and line and its pjsip endpoint and aor,
+// each exactly as the whole-dataset generators render the unassigned phone,
+// and that the hub of a deployment with offices renders none of them.
+func TestSpareRenderedOnEveryOfficeServer(t *testing.T) {
 	data := multiServerData()
 	p, _ := place(t, data)
 
@@ -169,6 +170,10 @@ func TestSpareRenderedOnEveryServer(t *testing.T) {
 
 	for _, serverID := range p.ServerIDs() {
 		t.Run(serverID, func(t *testing.T) {
+			if serverID == p.Hub {
+				assertNoSpare(t, data, p, serverID, spareMAC)
+				return
+			}
 			var r, n []string
 			for _, ph := range astgen.ServerPhones(data, p, serverID, dpma.Phone{}, contactsURL) {
 				r, n = append(r, render(t, &ph)), append(n, ph.MAC)
@@ -337,6 +342,9 @@ func TestSpareUnchangedByRejectedSoftphone(t *testing.T) {
 
 	for _, serverID := range pClean.ServerIDs() {
 		t.Run(serverID, func(t *testing.T) {
+			if serverID == pClean.Hub {
+				return // the hub renders no spare when there are offices
+			}
 			want := spareSections(t, clean, pClean, serverID)
 			got := spareSections(t, clash, pClash, serverID)
 			for _, kind := range []string{"endpoint", "aor", "line", "phone"} {
@@ -356,5 +364,36 @@ func TestSpareUnchangedByRejectedSoftphone(t *testing.T) {
 	}
 	if got := clash.People[2].Softphones; len(got) != 2 || got[1] != spareMAC {
 		t.Errorf("wilma's softphones are now %v, want [wilma.soft %s]", got, spareMAC)
+	}
+}
+
+// assertNoSpare checks that serverID renders nothing for the spare mac and
+// lists no credential for it.
+func assertNoSpare(t *testing.T, data *astorg.DataSet, p astgen.Placement, serverID, mac string) {
+	t.Helper()
+	for _, e := range astgen.ServerEndpoints(data, p, serverID, pjsip.Endpoint{}, "default") {
+		if e.Name == mac {
+			t.Errorf("ServerEndpoints(%s) renders the spare", serverID)
+		}
+	}
+	for _, a := range astgen.ServerAORs(data, p, serverID, pjsip.AOR{}) {
+		if a.Name == mac+"-aor" {
+			t.Errorf("ServerAORs(%s) renders the spare", serverID)
+		}
+	}
+	for _, l := range astgen.ServerLines(data, p, serverID) {
+		if l.Name == mac {
+			t.Errorf("ServerLines(%s) renders the spare", serverID)
+		}
+	}
+	for _, ph := range astgen.ServerPhones(data, p, serverID, dpma.Phone{}, "") {
+		if ph.MAC == mac {
+			t.Errorf("ServerPhones(%s) renders the spare", serverID)
+		}
+	}
+	for _, c := range p.Credentials(serverID) {
+		if c.ID == mac {
+			t.Errorf("Credentials(%s) lists the spare", serverID)
+		}
 	}
 }

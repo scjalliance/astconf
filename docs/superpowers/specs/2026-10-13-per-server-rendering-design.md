@@ -239,7 +239,8 @@ the fallthrough, so a call cannot bounce between servers.
 ## DPMA
 
 Phone, line and busy-lamp sections render only on the phone's host server,
-except that a spare's phone and line render on every server. A
+except that a spare's phone and line render on every server in
+`Placement.SpareServers` (Amendment 20). A
 busy-lamp key for someone on another server names the same `PJSIP/<device>`
 hint as a local one and lights from the published state.
 
@@ -410,3 +411,14 @@ The sections above already read this way.
     `device-conflict`, is skipped. A consumer
     must write the section that `Credential.Section` names and never build
     the name itself. Softphone secrets are not derived and are not listed.
+
+## Amendments (2026-10-28)
+
+20. **Spares render where an office is** (project owner, 2026-10-28). This
+    amends 18 and 19. A spare renders on every server that some location
+    names, listed sorted in `Placement.SpareServers`, and on no other
+    server. A spare is provisioned where it is plugged in, so a server that
+    serves no office, such as a cloud hub, renders no spare endpoint, aor,
+    DPMA phone or line, lists no spare credential, and need not run DPMA.
+    A hub that a location names, as in a one-server deployment, renders
+    every spare as before.

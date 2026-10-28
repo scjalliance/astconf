@@ -32,7 +32,7 @@ func TestServerDeviceSections(t *testing.T) {
 			phones:    []string{"000fd3000002", "000fd3000004", "000fd3000009"},
 		},
 		{
-			// The hub renders no spare when there are offices.
+			// No location names the hub, so it renders no spare.
 			server:    "hub",
 			endpoints: []string{"fred.soft", "wilma.soft", "yard.soft"},
 			aors:      []string{"fred.soft-aor", "wilma.soft-aor", "yard.soft-aor"},

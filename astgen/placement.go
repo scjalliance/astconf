@@ -3,6 +3,7 @@ package astgen
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/scjalliance/astconf/astorg"
@@ -80,17 +81,18 @@ type Credential struct {
 // Device names are pjsip endpoint names: the line name of a desk phone and
 // the username of a softphone.
 type Placement struct {
-	Hub        string                         // ID of the hub server
-	Servers    map[string]astorg.Server       // Every server, keyed by ID
-	Phones     map[string]string              // Desk phone MAC address to host server ID
-	Hosts      map[string]string              // Device name to host server ID
-	Homes      map[string]string              // Extension to home server ID
-	Owners     map[string]string              // Extension to the username of the person or role that holds it
-	Devices    map[string][]string            // Extension to the names of the devices it rings, sorted
-	Remote     map[string]map[string][]string // Extension to host server ID to the devices it rings there, sorted, for every host other than its home
-	TrunkPairs []TrunkPair                    // Every unordered pair of servers that both have an address, sorted by ID
-	Spares     []string                       // MAC addresses of the spare desk phones, sorted; every server renders each one
-	LineMACs   map[string]string              // Line name of each hosted desk phone and spare to the MAC address its credential derives from: the first phone on the line, in data set order, that Place hosts or keeps as a spare
+	Hub          string                         // ID of the hub server
+	Servers      map[string]astorg.Server       // Every server, keyed by ID
+	Phones       map[string]string              // Desk phone MAC address to host server ID
+	Hosts        map[string]string              // Device name to host server ID
+	Homes        map[string]string              // Extension to home server ID
+	Owners       map[string]string              // Extension to the username of the person or role that holds it
+	Devices      map[string][]string            // Extension to the names of the devices it rings, sorted
+	Remote       map[string]map[string][]string // Extension to host server ID to the devices it rings there, sorted, for every host other than its home
+	TrunkPairs   []TrunkPair                    // Every unordered pair of servers that both have an address, sorted by ID
+	Spares       []string                       // MAC addresses of the spare desk phones, sorted; each server in SpareServers renders each one
+	SpareServers []string                       // IDs of the servers that render every spare, sorted: the servers some location names, so the ones where a spare can be plugged in
+	LineMACs     map[string]string              // Line name of each hosted desk phone and spare to the MAC address its credential derives from: the first phone on the line, in data set order, that Place hosts or keeps as a spare
 }
 
 // Place decides which server hosts each device and which server owns each
@@ -102,7 +104,8 @@ type Placement struct {
 //
 // A spare is a desk phone with an empty Location that no person or role
 // owns. It may be plugged in at any office, so it is hosted by no server
-// and every server renders it, as the whole-dataset generators render an
+// and every server in SpareServers renders it (the servers some location
+// names), as the whole-dataset generators render an
 // unassigned phone: a DPMA phone with no extension and no user whose line,
 // pjsip endpoint and aor are named by its MAC address. A spare rings for
 // no extension, has no hint and no route, joins no paging group, and is
@@ -153,6 +156,13 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 	for id, server := range lookup.ServerByID {
 		p.Servers[id] = server
 	}
+	// The servers that render spares: those some location names.
+	for _, loc := range data.Locations {
+		if _, ok := p.Servers[loc.Server]; ok && !slices.Contains(p.SpareServers, loc.Server) {
+			p.SpareServers = append(p.SpareServers, loc.Server)
+		}
+	}
+	sort.Strings(p.SpareServers)
 
 	var problems []Problem
 
@@ -224,7 +234,7 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 				Rule:   RuleDeviceConflict,
 				Kind:   "phone",
 				ID:     phone.MAC,
-				Detail: fmt.Sprintf("line %q is already the line of a spare desk phone on every server", name),
+				Detail: fmt.Sprintf("line %q is already the line of a spare desk phone", name),
 			})
 			continue
 		}
@@ -255,7 +265,7 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 				Rule:   RuleDeviceConflict,
 				Kind:   "softphone",
 				ID:     softphone.Username,
-				Detail: fmt.Sprintf("device %q is already the line of a spare desk phone on every server", softphone.Username),
+				Detail: fmt.Sprintf("device %q is already the line of a spare desk phone", softphone.Username),
 			})
 			continue
 		}
@@ -413,10 +423,11 @@ func (p Placement) HomedExtensions(serverID string) []string {
 // Credentials returns the credentials that serverID's node agent writes:
 // one trunk credential per peer, sorted by pair ID, and then one phone
 // credential for each desk phone line serverID hosts and each spare,
-// sorted by MAC address. Every office server lists every spare, whether
-// or not it has an address; the hub lists none when there are offices. This is the one list of derived secrets the node
-// agent needs: it holds every auth section that serverID's rendered
-// endpoints and trunks name, apart from softphones, whose secrets are not
+// sorted by MAC address. Every server in SpareServers lists every spare,
+// whether or not it has an address; any other server lists none. This is
+// the one list of derived secrets the node agent needs: it holds every
+// auth section that serverID's rendered endpoints and trunks name, apart
+// from softphones, whose secrets are not
 // derived.
 func (p Placement) Credentials(serverID string) []Credential {
 	var creds []Credential
@@ -455,13 +466,12 @@ func (p Placement) Credentials(serverID string) []Credential {
 	return append(creds, phones...)
 }
 
-// sparesOn returns the spares serverID renders: every spare on an office
-// server, and none on a server the placement does not know. The hub gets
-// none when there are offices: it need not run DPMA, and a spare is
-// provisioned where it is plugged in, at an office. In a deployment of one
-// server, the hub is the office and renders every spare.
+// sparesOn returns the spares serverID renders: every spare on a server in
+// SpareServers, and none elsewhere. A spare is provisioned where it is
+// plugged in, at an office, so a server no location names (a hub that
+// serves no office) renders none and need not run DPMA.
 func (p Placement) sparesOn(serverID string) map[string]bool {
-	if _, ok := p.Servers[serverID]; !ok || (serverID == p.Hub && len(p.Servers) > 1) {
+	if !slices.Contains(p.SpareServers, serverID) {
 		return map[string]bool{}
 	}
 	return p.spareSet()

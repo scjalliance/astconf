@@ -67,7 +67,7 @@ it to lay out each node's tree and secret manifest:
 - **Device host.** A desk phone is hosted by its location's server
   (`Lookup.LocationServer`). Every softphone is hosted by the hub. A
   spare, a desk phone with no location and no owner, is hosted by no
-  server and rendered on every server (Amendment 18).
+  server and rendered on every office (Amendments 18 and 20).
 - **Extension home.** A person's or role's extension lives on its location's
   server, or on the hub when that location has no server.
 - **Remote devices.** For each extension, the devices hosted on a server other
@@ -79,7 +79,9 @@ it to lay out each node's tree and secret manifest:
   secret; the sort is the normalization rule the secret-derivation contract
   requires to be fixed.
 - **Spares.** `Spares` holds the MAC address of each spare desk phone,
-  sorted (Amendment 18).
+  sorted (Amendment 18). `SpareServers` lists the offices that render them:
+  each server some location names except the hub, or the only server
+  (Amendment 20).
 - **Line credentials.** `LineMACs` maps the line name of each hosted desk
   phone and each spare to the MAC address its phone credential derives
   from: the first phone on the line, in data set order, that `Place`
@@ -239,7 +241,8 @@ the fallthrough, so a call cannot bounce between servers.
 ## DPMA
 
 Phone, line and busy-lamp sections render only on the phone's host server,
-except that a spare's phone and line render on every server. A
+except that a spare's phone and line render on every server in
+`Placement.SpareServers` (Amendment 20). A
 busy-lamp key for someone on another server names the same `PJSIP/<device>`
 hint as a local one and lights from the published state.
 
@@ -410,3 +413,13 @@ The sections above already read this way.
     `device-conflict`, is skipped. A consumer
     must write the section that `Credential.Section` names and never build
     the name itself. Softphone secrets are not derived and are not listed.
+
+## Amendments (2026-10-28)
+
+20. **Spares render on the offices** (project owner, 2026-10-28). This
+    amends 18 and 19. A spare renders on every office, listed sorted in
+    `Placement.SpareServers`: each server some location names, except the
+    hub; in a deployment of one server, that server. The hub of a
+    deployment with offices renders no spare endpoint, aor, DPMA phone or
+    line and lists no spare credential, whatever a location names, so it
+    need not run DPMA. A spare is provisioned where it is plugged in.

@@ -14,14 +14,17 @@
 // naming devices PJSIP/. They only read the data set and the placement, so
 // several servers may render at once from one of each.
 //
-// A spare is a desk phone with no location and no owner. Place lists it in
-// Placement.Spares and no server hosts it. Every server renders its DPMA
-// phone and line and its pjsip endpoint and aor, named by its MAC address,
-// as the whole-dataset generators render an unassigned phone, so DPMA can
-// provision it at any office with no extension and no user. It gets no
-// extension, hint, route or paging membership, and no device state filter
-// names it, so no server publishes state for it. A desk phone with no
-// location that a person or role owns is reported as RuleOwnedNoLocation.
+// A spare is a desk phone with no location and no owner. Place lists it
+// in Placement.Spares and no server hosts it. Every office
+// (Placement.SpareServers: each server a location names except the hub, or
+// the only server) renders its DPMA phone and line and its pjsip endpoint
+// and aor, named by its MAC address, as the whole-dataset generators render
+// an unassigned phone, so DPMA can provision it at any office with no
+// extension and no user. The hub of a deployment with offices renders no
+// spare, whatever a location says, so it need not run DPMA. It
+// gets no extension, hint, route or paging membership, and no device state
+// filter names it, so no server publishes state for it. A desk phone with
+// no location that a person or role owns is reported as RuleOwnedNoLocation.
 //
 // These generators never render a secret from the data set: no phone or
 // softphone secret, voicemail code or mailbox access code, and no trunk
@@ -31,13 +34,13 @@
 // in the dpma.Phone base given to ServerPhones, passes through as given.
 //
 // Placement.Credentials is the one list of derived secrets a server's node
-// agent needs: a trunk credential per peer, and a phone credential, with a
-// MAC address as its ID, for each desk phone line the server hosts and
-// each spare. Softphone secrets are not derived and are not listed. A
-// phone credential's section is the auth section its line's endpoint
-// names, "<line>-auth", which is "<MAC>-auth" for a spare or another
-// unassigned phone. A consumer must write the section that
-// Credential.Section names and never build the name itself.
+// agent needs: a trunk credential per peer, and a phone credential, with
+// a MAC address as its ID, for each desk phone line the server hosts and,
+// on a server in Placement.SpareServers, each spare. Softphone secrets are
+// not derived and are not listed. A phone credential's section is the auth
+// section its line's endpoint names, "<line>-auth", which is "<MAC>-auth"
+// for a spare or another unassigned phone. A consumer must write the
+// section that Credential.Section names and never build the name itself.
 //
 // # What the consumer must provide
 //

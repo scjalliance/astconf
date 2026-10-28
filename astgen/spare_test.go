@@ -2,6 +2,7 @@ package astgen_test
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,7 +71,7 @@ func TestPlaceSpareConflicts(t *testing.T) {
 			Rule:   astgen.RuleDeviceConflict,
 			Kind:   "softphone",
 			ID:     spareMAC,
-			Detail: `device "000fd3000009" is already the line of a spare desk phone on every server`,
+			Detail: `device "000fd3000009" is already the line of a spare desk phone`,
 		}}
 		if !reflect.DeepEqual(problems, want) {
 			t.Errorf("Place() problems =\n%v\nwant:\n%v", problems, want)
@@ -87,7 +88,7 @@ func TestPlaceSpareConflicts(t *testing.T) {
 			Rule:   astgen.RuleDeviceConflict,
 			Kind:   "phone",
 			ID:     spareMAC,
-			Detail: `line "000fd3000009" is already the line of a spare desk phone on every server`,
+			Detail: `line "000fd3000009" is already the line of a spare desk phone`,
 		}}
 		if !reflect.DeepEqual(problems, want) {
 			t.Errorf("Place() problems =\n%v\nwant:\n%v", problems, want)
@@ -115,10 +116,11 @@ func TestPlaceSpareConflicts(t *testing.T) {
 	})
 }
 
-// TestSpareRenderedOnEveryServer checks that every server renders the
-// spare's DPMA phone and line and its pjsip endpoint and aor, each exactly
-// as the whole-dataset generators render the unassigned phone.
-func TestSpareRenderedOnEveryServer(t *testing.T) {
+// TestSpareRenderedOnEveryOfficeServer checks that every office server
+// renders the spare's DPMA phone and line and its pjsip endpoint and aor,
+// each exactly as the whole-dataset generators render the unassigned phone,
+// and that every server outside SpareServers (the hub) renders none.
+func TestSpareRenderedOnEveryOfficeServer(t *testing.T) {
 	data := multiServerData()
 	p, _ := place(t, data)
 
@@ -169,6 +171,10 @@ func TestSpareRenderedOnEveryServer(t *testing.T) {
 
 	for _, serverID := range p.ServerIDs() {
 		t.Run(serverID, func(t *testing.T) {
+			if !slices.Contains(p.SpareServers, serverID) {
+				assertNoSpare(t, data, p, serverID, spareMAC)
+				return
+			}
 			var r, n []string
 			for _, ph := range astgen.ServerPhones(data, p, serverID, dpma.Phone{}, contactsURL) {
 				r, n = append(r, render(t, &ph)), append(n, ph.MAC)
@@ -337,6 +343,12 @@ func TestSpareUnchangedByRejectedSoftphone(t *testing.T) {
 
 	for _, serverID := range pClean.ServerIDs() {
 		t.Run(serverID, func(t *testing.T) {
+			if !slices.Contains(pClean.SpareServers, serverID) {
+				// Not an office: it renders no spare, and the rejected
+				// softphone named like one must not appear either.
+				assertNoSpare(t, clash, pClash, serverID, spareMAC)
+				return
+			}
 			want := spareSections(t, clean, pClean, serverID)
 			got := spareSections(t, clash, pClash, serverID)
 			for _, kind := range []string{"endpoint", "aor", "line", "phone"} {
@@ -357,4 +369,57 @@ func TestSpareUnchangedByRejectedSoftphone(t *testing.T) {
 	if got := clash.People[2].Softphones; len(got) != 2 || got[1] != spareMAC {
 		t.Errorf("wilma's softphones are now %v, want [wilma.soft %s]", got, spareMAC)
 	}
+}
+
+// assertNoSpare checks that serverID renders nothing for the spare mac and
+// lists no credential for it.
+func assertNoSpare(t *testing.T, data *astorg.DataSet, p astgen.Placement, serverID, mac string) {
+	t.Helper()
+	for _, e := range astgen.ServerEndpoints(data, p, serverID, pjsip.Endpoint{}, "default") {
+		if e.Name == mac {
+			t.Errorf("ServerEndpoints(%s) renders the spare", serverID)
+		}
+	}
+	for _, a := range astgen.ServerAORs(data, p, serverID, pjsip.AOR{}) {
+		if a.Name == mac+"-aor" {
+			t.Errorf("ServerAORs(%s) renders the spare", serverID)
+		}
+	}
+	for _, l := range astgen.ServerLines(data, p, serverID) {
+		if l.Name == mac {
+			t.Errorf("ServerLines(%s) renders the spare", serverID)
+		}
+	}
+	for _, ph := range astgen.ServerPhones(data, p, serverID, dpma.Phone{}, "") {
+		if ph.MAC == mac {
+			t.Errorf("ServerPhones(%s) renders the spare", serverID)
+		}
+	}
+	for _, c := range p.Credentials(serverID) {
+		if c.ID == mac {
+			t.Errorf("Credentials(%s) lists the spare", serverID)
+		}
+	}
+}
+
+// TestSpareServers checks that spares render on the offices: each server a
+// location names except the hub. A location naming the hub or an unknown
+// server adds nothing, so the hub of a deployment with offices never needs
+// DPMA.
+func TestSpareServers(t *testing.T) {
+	data := multiServerData()
+	p, _ := place(t, data)
+	if len(p.SpareServers) == 0 || slices.Contains(p.SpareServers, p.Hub) || !slices.IsSorted(p.SpareServers) {
+		t.Fatalf("SpareServers = %v, want the offices, sorted, without the hub", p.SpareServers)
+	}
+	before := slices.Clone(p.SpareServers)
+
+	data.Locations = append(data.Locations,
+		astorg.Location{Name: "Head Office", Server: p.Hub},
+		astorg.Location{Name: "Gone", Server: "gone"})
+	p, _ = place(t, data)
+	if !slices.Equal(p.SpareServers, before) {
+		t.Fatalf("SpareServers = %v after a hub and an unknown location, want %v", p.SpareServers, before)
+	}
+	assertNoSpare(t, data, p, p.Hub, spareMAC)
 }

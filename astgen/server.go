@@ -103,7 +103,7 @@ func placedData(data *astorg.DataSet, p Placement) *astorg.DataSet {
 // ServerEndpoints generates PJSIP endpoint entries for the devices that
 // serverID hosts and, on a server in SpareServers, for every spare. Each
 // entry is the one Endpoints generates for the same device, in the same
-// order, except that the VMCODE variable is removed.  Per-server output
+// order, except that the VMCODE variable is removed. Per-server output
 // is committed to a config repo that every server pulls, so it never
 // holds a voicemail PIN.
 func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pjsip.Endpoint, context string) []pjsip.Endpoint {

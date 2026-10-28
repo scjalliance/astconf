@@ -105,15 +105,14 @@ type Placement struct {
 // A spare is a desk phone with an empty Location that no person or role
 // owns. It may be plugged in at any office, so it is hosted by no server
 // and every office in SpareServers renders it, as the whole-dataset
-// generators render an
-// unassigned phone: a DPMA phone with no extension and no user whose line,
-// pjsip endpoint and aor are named by its MAC address. A spare rings for
-// no extension, has no hint and no route, joins no paging group, and is
-// left out of every device state filter, so no server publishes state for
-// a device that may register to any of them. A desk phone with an empty
-// Location that a person or role owns is not a spare: it is reported as
-// RuleOwnedNoLocation and left out, since its extension's home cannot
-// tell which server should ring it.
+// generators render an unassigned phone: a DPMA phone with no extension
+// and no user whose line, pjsip endpoint and aor are named by its MAC
+// address. A spare rings for no extension, has no hint and no route,
+// joins no paging group, and is left out of every device state filter,
+// so no server publishes state for a device that may register to any of
+// them. A desk phone with an empty Location that a person or role owns
+// is not a spare: it is reported as RuleOwnedNoLocation and left out,
+// since its extension's home cannot tell which server should ring it.
 //
 // Place returns an error only when the data set does not have exactly one
 // hub. Any other record that cannot be placed is reported as a Problem and
@@ -437,8 +436,7 @@ func (p Placement) HomedExtensions(serverID string) []string {
 // whether or not it has an address; any other server lists none. This is
 // the one list of derived secrets the node agent needs: it holds every
 // auth section that serverID's rendered endpoints and trunks name, apart
-// from softphones, whose secrets are not
-// derived.
+// from softphones, whose secrets are not derived.
 func (p Placement) Credentials(serverID string) []Credential {
 	var creds []Credential
 	for _, pair := range p.TrunkPairs {

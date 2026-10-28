@@ -91,7 +91,7 @@ type Placement struct {
 	Remote       map[string]map[string][]string // Extension to host server ID to the devices it rings there, sorted, for every host other than its home
 	TrunkPairs   []TrunkPair                    // Every unordered pair of servers that both have an address, sorted by ID
 	Spares       []string                       // MAC addresses of the spare desk phones, sorted; each server in SpareServers renders each one
-	SpareServers []string                       // IDs of the servers that render every spare, sorted: the servers some location names, so the ones where a spare can be plugged in
+	SpareServers []string                       // IDs of the servers that render every spare, sorted: the offices, meaning every server a location names except the hub, or the only server
 	LineMACs     map[string]string              // Line name of each hosted desk phone and spare to the MAC address its credential derives from: the first phone on the line, in data set order, that Place hosts or keeps as a spare
 }
 
@@ -104,8 +104,8 @@ type Placement struct {
 //
 // A spare is a desk phone with an empty Location that no person or role
 // owns. It may be plugged in at any office, so it is hosted by no server
-// and every server in SpareServers renders it (the servers some location
-// names), as the whole-dataset generators render an
+// and every office in SpareServers renders it, as the whole-dataset
+// generators render an
 // unassigned phone: a DPMA phone with no extension and no user whose line,
 // pjsip endpoint and aor are named by its MAC address. A spare rings for
 // no extension, has no hint and no route, joins no paging group, and is
@@ -156,11 +156,21 @@ func Place(data *astorg.DataSet) (Placement, []Problem, error) {
 	for id, server := range lookup.ServerByID {
 		p.Servers[id] = server
 	}
-	// The servers that render spares: those some location names.
+	// The servers that render spares: the offices, meaning every server some
+	// location names except the hub. In a deployment of one server, that
+	// server is the office. The hub never renders a spare when there are
+	// offices, whatever a location says, so it need not run DPMA.
+	spareServers := make(map[string]bool)
+	if len(p.Servers) == 1 {
+		spareServers[p.Hub] = true
+	}
 	for _, loc := range data.Locations {
-		if _, ok := p.Servers[loc.Server]; ok && !slices.Contains(p.SpareServers, loc.Server) {
-			p.SpareServers = append(p.SpareServers, loc.Server)
+		if _, ok := p.Servers[loc.Server]; ok && loc.Server != p.Hub {
+			spareServers[loc.Server] = true
 		}
+	}
+	for id := range spareServers {
+		p.SpareServers = append(p.SpareServers, id)
 	}
 	sort.Strings(p.SpareServers)
 
@@ -467,9 +477,8 @@ func (p Placement) Credentials(serverID string) []Credential {
 }
 
 // sparesOn returns the spares serverID renders: every spare on a server in
-// SpareServers, and none elsewhere. A spare is provisioned where it is
-// plugged in, at an office, so a server no location names (a hub that
-// serves no office) renders none and need not run DPMA.
+// SpareServers (the offices), and none elsewhere. A spare is provisioned
+// where it is plugged in, at an office.
 func (p Placement) sparesOn(serverID string) map[string]bool {
 	if !slices.Contains(p.SpareServers, serverID) {
 		return map[string]bool{}

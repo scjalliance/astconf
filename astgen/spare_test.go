@@ -119,7 +119,7 @@ func TestPlaceSpareConflicts(t *testing.T) {
 // TestSpareRenderedOnEveryOfficeServer checks that every office server
 // renders the spare's DPMA phone and line and its pjsip endpoint and aor,
 // each exactly as the whole-dataset generators render the unassigned phone,
-// and that the hub of a deployment with offices renders none of them.
+// and that every server outside SpareServers (the hub) renders none.
 func TestSpareRenderedOnEveryOfficeServer(t *testing.T) {
 	data := multiServerData()
 	p, _ := place(t, data)
@@ -171,7 +171,7 @@ func TestSpareRenderedOnEveryOfficeServer(t *testing.T) {
 
 	for _, serverID := range p.ServerIDs() {
 		t.Run(serverID, func(t *testing.T) {
-			if serverID == p.Hub {
+			if !slices.Contains(p.SpareServers, serverID) {
 				assertNoSpare(t, data, p, serverID, spareMAC)
 				return
 			}
@@ -343,9 +343,9 @@ func TestSpareUnchangedByRejectedSoftphone(t *testing.T) {
 
 	for _, serverID := range pClean.ServerIDs() {
 		t.Run(serverID, func(t *testing.T) {
-			if serverID == pClean.Hub {
-				// No location names the hub: it renders no spare, and the
-				// rejected softphone named like one must not appear either.
+			if !slices.Contains(pClean.SpareServers, serverID) {
+				// Not an office: it renders no spare, and the rejected
+				// softphone named like one must not appear either.
 				assertNoSpare(t, clash, pClash, serverID, spareMAC)
 				return
 			}
@@ -402,34 +402,24 @@ func assertNoSpare(t *testing.T, data *astorg.DataSet, p astgen.Placement, serve
 	}
 }
 
-// TestSpareServers checks that spares render on exactly the servers some
-// location names: a hub that serves an office keeps them, a hub that
-// serves none and a server no location names get none, and a location
-// naming an unknown server adds nothing.
+// TestSpareServers checks that spares render on the offices: each server a
+// location names except the hub. A location naming the hub or an unknown
+// server adds nothing, so the hub of a deployment with offices never needs
+// DPMA.
 func TestSpareServers(t *testing.T) {
 	data := multiServerData()
 	p, _ := place(t, data)
-	if slices.Contains(p.SpareServers, p.Hub) {
-		t.Fatalf("SpareServers = %v includes the hub, which no location names", p.SpareServers)
+	if len(p.SpareServers) == 0 || slices.Contains(p.SpareServers, p.Hub) || !slices.IsSorted(p.SpareServers) {
+		t.Fatalf("SpareServers = %v, want the offices, sorted, without the hub", p.SpareServers)
 	}
-	assertNoSpare(t, data, p, p.Hub, spareMAC)
+	before := slices.Clone(p.SpareServers)
 
-	// A location on the hub makes it an office: it renders the spares.
 	data.Locations = append(data.Locations,
 		astorg.Location{Name: "Head Office", Server: p.Hub},
 		astorg.Location{Name: "Gone", Server: "gone"})
 	p, _ = place(t, data)
-	if !slices.Contains(p.SpareServers, p.Hub) || slices.Contains(p.SpareServers, "gone") {
-		t.Fatalf("SpareServers = %v, want the hub and no unknown server", p.SpareServers)
+	if !slices.Equal(p.SpareServers, before) {
+		t.Fatalf("SpareServers = %v after a hub and an unknown location, want %v", p.SpareServers, before)
 	}
-	if !slices.IsSorted(p.SpareServers) {
-		t.Fatalf("SpareServers = %v is not sorted", p.SpareServers)
-	}
-	found := false
-	for _, ph := range astgen.ServerPhones(data, p, p.Hub, dpma.Phone{}, "") {
-		found = found || ph.MAC == spareMAC
-	}
-	if !found {
-		t.Fatal("a hub that a location names does not render the spare")
-	}
+	assertNoSpare(t, data, p, p.Hub, spareMAC)
 }

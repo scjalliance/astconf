@@ -67,7 +67,7 @@ it to lay out each node's tree and secret manifest:
 - **Device host.** A desk phone is hosted by its location's server
   (`Lookup.LocationServer`). Every softphone is hosted by the hub. A
   spare, a desk phone with no location and no owner, is hosted by no
-  server and rendered on every server (Amendment 18).
+  server and rendered on every office (Amendments 18 and 20).
 - **Extension home.** A person's or role's extension lives on its location's
   server, or on the hub when that location has no server.
 - **Remote devices.** For each extension, the devices hosted on a server other
@@ -79,7 +79,9 @@ it to lay out each node's tree and secret manifest:
   secret; the sort is the normalization rule the secret-derivation contract
   requires to be fixed.
 - **Spares.** `Spares` holds the MAC address of each spare desk phone,
-  sorted (Amendment 18).
+  sorted (Amendment 18). `SpareServers` lists the offices that render them:
+  each server some location names except the hub, or the only server
+  (Amendment 20).
 - **Line credentials.** `LineMACs` maps the line name of each hosted desk
   phone and each spare to the MAC address its phone credential derives
   from: the first phone on the line, in data set order, that `Place`
@@ -414,11 +416,10 @@ The sections above already read this way.
 
 ## Amendments (2026-10-28)
 
-20. **Spares render where an office is** (project owner, 2026-10-28). This
-    amends 18 and 19. A spare renders on every server that some location
-    names, listed sorted in `Placement.SpareServers`, and on no other
-    server. A spare is provisioned where it is plugged in, so a server that
-    serves no office, such as a cloud hub, renders no spare endpoint, aor,
-    DPMA phone or line, lists no spare credential, and need not run DPMA.
-    A hub that a location names, as in a one-server deployment, renders
-    every spare as before.
+20. **Spares render on the offices** (project owner, 2026-10-28). This
+    amends 18 and 19. A spare renders on every office, listed sorted in
+    `Placement.SpareServers`: each server some location names, except the
+    hub; in a deployment of one server, that server. The hub of a
+    deployment with offices renders no spare endpoint, aor, DPMA phone or
+    line and lists no spare credential, whatever a location names, so it
+    need not run DPMA. A spare is provisioned where it is plugged in.

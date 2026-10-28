@@ -15,12 +15,13 @@
 // several servers may render at once from one of each.
 //
 // A spare is a desk phone with no location and no owner. Place lists it
-// in Placement.Spares and no server hosts it. Every server some location
-// names (Placement.SpareServers) renders its DPMA phone and line and its
-// pjsip endpoint and aor, named by its MAC address, as the whole-dataset
-// generators render an unassigned phone, so DPMA can provision it at any
-// office with no extension and no user. A server no location names, such as
-// a hub that serves no office, renders no spare and need not run DPMA. It
+// in Placement.Spares and no server hosts it. Every office
+// (Placement.SpareServers: each server a location names except the hub, or
+// the only server) renders its DPMA phone and line and its pjsip endpoint
+// and aor, named by its MAC address, as the whole-dataset generators render
+// an unassigned phone, so DPMA can provision it at any office with no
+// extension and no user. The hub of a deployment with offices renders no
+// spare, whatever a location says, so it need not run DPMA. It
 // gets no extension, hint, route or paging membership, and no device state
 // filter names it, so no server publishes state for it. A desk phone with
 // no location that a person or role owns is reported as RuleOwnedNoLocation.

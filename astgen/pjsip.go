@@ -14,9 +14,13 @@ func authName(username string) string {
 	return username + "-auth"
 }
 
-// aorName returns the name of the pjsip aor section for a device.
+// aorName returns the name of the pjsip aor section for a device: the
+// device's own username, the same as its endpoint. Asterisk's registrar finds
+// the aor by the user part of a REGISTER's To URI, and a phone registers
+// under its username, so any other name answers 404 (scjalliance/astconf#23).
+// PJSIP keeps each object type apart, so an endpoint and an aor can share it.
 func aorName(username string) string {
-	return username + "-aor"
+	return username
 }
 
 // Endpoints generates PJSIP endpoint entries for a dataset.

@@ -27,7 +27,7 @@ func TestServerDeviceSections(t *testing.T) {
 		{
 			server:    "den",
 			endpoints: []string{"lobby", "barney", "000fd3000009"},
-			aors:      []string{"lobby-aor", "barney-aor", "000fd3000009-aor"},
+			aors:      []string{"lobby", "barney", "000fd3000009"},
 			lines:     []string{"lobby", "barney", "000fd3000009"},
 			phones:    []string{"000fd3000002", "000fd3000004", "000fd3000009"},
 		},
@@ -35,12 +35,12 @@ func TestServerDeviceSections(t *testing.T) {
 			// No location names the hub, so it renders no spare.
 			server:    "hub",
 			endpoints: []string{"fred.soft", "wilma.soft", "yard.soft"},
-			aors:      []string{"fred.soft-aor", "wilma.soft-aor", "yard.soft-aor"},
+			aors:      []string{"fred.soft", "wilma.soft", "yard.soft"},
 		},
 		{
 			server:    "qry",
 			endpoints: []string{"fred", "000fd3000003", "000fd3000009"},
-			aors:      []string{"fred-aor", "000fd3000003-aor", "000fd3000009-aor"},
+			aors:      []string{"fred", "000fd3000003", "000fd3000009"},
 			lines:     []string{"fred", "000fd3000003", "000fd3000009"},
 			phones:    []string{"000fd3000001", "000fd3000003", "000fd3000009"},
 		},

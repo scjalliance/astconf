@@ -163,7 +163,7 @@ func TestSpareRenderedOnEveryOfficeServer(t *testing.T) {
 		for _, a := range astgen.AORs(data, aorBase) {
 			r, n = append(r, render(t, &a)), append(n, a.Name)
 		}
-		legacy.aor = pick(t, "AORs()", r, n, spareMAC+"-aor")
+		legacy.aor = pick(t, "AORs()", r, n, spareMAC)
 	}
 	if !strings.Contains(legacy.phone, "line = "+spareMAC+"\n") {
 		t.Fatalf("the legacy phone does not name its line by its MAC:\n%s", legacy.phone)
@@ -200,7 +200,7 @@ func TestSpareRenderedOnEveryOfficeServer(t *testing.T) {
 			for _, a := range astgen.ServerAORs(data, p, serverID, aorBase) {
 				r, n = append(r, render(t, &a)), append(n, a.Name)
 			}
-			if got := pick(t, "ServerAORs()", r, n, spareMAC+"-aor"); got != legacy.aor {
+			if got := pick(t, "ServerAORs()", r, n, spareMAC); got != legacy.aor {
 				t.Errorf("ServerAORs() spare =\n%s\nwant:\n%s", got, legacy.aor)
 			}
 
@@ -324,7 +324,7 @@ func TestSpareUnchangedByRejectedSoftphone(t *testing.T) {
 			}
 		}
 		for _, a := range astgen.ServerAORs(data, p, serverID, pjsip.AOR{}) {
-			if a.Name == spareMAC+"-aor" {
+			if a.Name == spareMAC {
 				out["aor"] += render(t, &a)
 			}
 		}
@@ -381,7 +381,7 @@ func assertNoSpare(t *testing.T, data *astorg.DataSet, p astgen.Placement, serve
 		}
 	}
 	for _, a := range astgen.ServerAORs(data, p, serverID, pjsip.AOR{}) {
-		if a.Name == mac+"-aor" {
+		if a.Name == mac {
 			t.Errorf("ServerAORs(%s) renders the spare", serverID)
 		}
 	}

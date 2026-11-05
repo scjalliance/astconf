@@ -26,7 +26,7 @@ func TestEndpoints(t *testing.T) {
 		"type = endpoint\n" +
 		"context = from-internal\n" +
 		"auth = fred-auth\n" +
-		"aors = fred-aor\n" +
+		"aors = fred\n" +
 		"callerid = \"Fred Flintstone\" <100>\n" +
 		"mailboxes = 100@default\n" +
 		"set_var = VMCODE=1234\n" +
@@ -40,7 +40,7 @@ func TestEndpoints(t *testing.T) {
 		"type = endpoint\n" +
 		"context = from-internal\n" +
 		"auth = lobby-auth\n" +
-		"aors = lobby-aor\n" +
+		"aors = lobby\n" +
 		"callerid = \"Lobby\" <200>\n" +
 		"mailboxes = 200@default\n" +
 		"set_var = USER_LOCATION=Quarry\n" +
@@ -51,7 +51,7 @@ func TestEndpoints(t *testing.T) {
 		"type = endpoint\n" +
 		"context = from-internal\n" +
 		"auth = 000fd3000003-auth\n" +
-		"aors = 000fd3000003-aor\n" +
+		"aors = 000fd3000003\n" +
 		"callerid = \"QRY-000FD3000003\" <UNAVAILABLE>\n" +
 		"set_var = USER_LOCATION=Quarry\n" +
 		"set_var = OUTBOUND_CALLERID=5555550100\n" +
@@ -61,7 +61,7 @@ func TestEndpoints(t *testing.T) {
 		"type = endpoint\n" +
 		"context = from-internal\n" +
 		"auth = fred.soft-auth\n" +
-		"aors = fred.soft-aor\n" +
+		"aors = fred.soft\n" +
 		"callerid = \"Fred Flintstone\" <100>\n" +
 		"set_var = VMCODE=1234\n" +
 		"set_var = MOBILE=5555551234\n" +
@@ -74,7 +74,7 @@ func TestEndpoints(t *testing.T) {
 		"type = endpoint\n" +
 		"context = from-internal\n" +
 		"auth = lobby.soft-auth\n" +
-		"aors = lobby.soft-aor\n" +
+		"aors = lobby.soft\n" +
 		"callerid = \"Lobby\" <200>\n"
 	if got != want {
 		t.Errorf("Endpoints() rendered:\n%s\nwant:\n%s", got, want)
@@ -140,27 +140,27 @@ func TestAORs(t *testing.T) {
 	}
 	got := render(t, values...)
 
-	want := "[fred-aor]\n" +
+	want := "[fred]\n" +
 		"type = aor\n" +
 		"max_contacts = 5\n" +
 		"remove_existing = yes\n" +
 		"\n" +
-		"[lobby-aor]\n" +
+		"[lobby]\n" +
 		"type = aor\n" +
 		"max_contacts = 5\n" +
 		"remove_existing = yes\n" +
 		"\n" +
-		"[000fd3000003-aor]\n" +
+		"[000fd3000003]\n" +
 		"type = aor\n" +
 		"max_contacts = 5\n" +
 		"remove_existing = yes\n" +
 		"\n" +
-		"[fred.soft-aor]\n" +
+		"[fred.soft]\n" +
 		"type = aor\n" +
 		"max_contacts = 5\n" +
 		"remove_existing = yes\n" +
 		"\n" +
-		"[lobby.soft-aor]\n" +
+		"[lobby.soft]\n" +
 		"type = aor\n" +
 		"max_contacts = 5\n" +
 		"remove_existing = yes\n"

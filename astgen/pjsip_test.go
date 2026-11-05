@@ -203,3 +203,21 @@ func TestSoftphoneWithoutUsername(t *testing.T) {
 		t.Errorf("SIP() returned %d entries for an unnamed softphone, want 0", len(got))
 	}
 }
+
+// TestDeviceAORIsItsEndpoint: every device endpoint names exactly one aor,
+// with the endpoint's own name, which a phone registers under (#23).
+func TestDeviceAORIsItsEndpoint(t *testing.T) {
+	data := testData()
+	aors := map[string]bool{}
+	for _, a := range astgen.AORs(data, pjsip.AOR{}) {
+		aors[a.Name] = true
+	}
+	for _, ep := range astgen.Endpoints(data, pjsip.Endpoint{}, "default") {
+		if len(ep.AORs) != 1 || ep.AORs[0] != ep.Name {
+			t.Errorf("endpoint %s: aors %v, want [%s]", ep.Name, ep.AORs, ep.Name)
+		}
+		if !aors[ep.Name] {
+			t.Errorf("endpoint %s: no aor named %s", ep.Name, ep.Name)
+		}
+	}
+}

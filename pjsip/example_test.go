@@ -15,7 +15,7 @@ func Example() {
 		Name:      "100",
 		Templates: []string{"desk"},
 		Auth:      "100-auth",
-		AORs:      []string{"100-aor"},
+		AORs:      []string{"100"},
 		CallerID:  "\"Fred Flintstone\" <100>",
 		Mailboxes: []string{"100@default"},
 		Variables: []astval.Var{
@@ -30,7 +30,7 @@ func Example() {
 		Password: "bedrock",
 	}
 	aor := pjsip.AOR{
-		Name:           "100-aor",
+		Name:           "100",
 		MaxContacts:    astval.NewInt(5),
 		RemoveExisting: astval.Yes,
 	}
@@ -48,7 +48,7 @@ func Example() {
 	// [100](desk)
 	// type = endpoint
 	// auth = 100-auth
-	// aors = 100-aor
+	// aors = 100
 	// callerid = "Fred Flintstone" <100>
 	// mailboxes = 100@default
 	// set_var = USER_LOCATION=QRY
@@ -60,7 +60,7 @@ func Example() {
 	// username = 100
 	// password = bedrock
 	//
-	// [100-aor]
+	// [100]
 	// type = aor
 	// max_contacts = 5
 	// remove_existing = yes

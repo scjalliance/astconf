@@ -129,10 +129,9 @@ func ServerEndpoints(data *astorg.DataSet, p Placement, serverID string, base pj
 // hosts and, on a server in SpareServers, for every spare. Each entry is
 // the one AORs generates for the same device, in the same order.
 func ServerAORs(data *astorg.DataSet, p Placement, serverID string, base pjsip.AOR) []pjsip.AOR {
-	hosted := make(map[string]bool)
-	for name := range hostedSet(p, serverID) {
-		hosted[aorName(name)] = true
-	}
+	// An aor has its device's name (aorName), so the hosted set filters it
+	// directly.
+	hosted := hostedSet(p, serverID)
 	var out []pjsip.AOR
 	for _, aor := range AORs(placedData(data, p), base) {
 		if hosted[aor.Name] {
